@@ -44,7 +44,7 @@ cycle_bin/
 ### 1. `yolo_server/server.py` - Python Flask Server
 
 **Chức năng:**
-- Load model YOLO `best.pt` từ `D:\YOLO\IOT\Src\best.pt`
+- Load model YOLO (ví dụ: `best.pt`)
 - Nhận ảnh từ phone camera, chạy YOLO detection
 - Lưu kết quả và cung cấp API cho ESP32 poll
 

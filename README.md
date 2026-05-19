@@ -6,7 +6,7 @@ Hệ thống thùng rác thông minh sử dụng AI (YOLO) để phân loại r�
 
 ```
 ┌─────────────┐    HTTP POST     ┌──────────────────┐    HTTP GET     ┌──────────┐
-│  Phone Cam  │ ──── image ───> │  Python Server   │ <─── poll ──── │  ESP32   │
+│  Phone Cam  │ ──── image ───>  │  Python Server   │ <─── poll ────  │  ESP32   │
 │  (Web App)  │                  │  (Flask + YOLO)  │                 │  (Motor) │
 └─────────────┘                  └──────────────────┘                 └──────────┘
                                        │
@@ -14,11 +14,11 @@ Hệ thống thùng rác thông minh sử dụng AI (YOLO) để phân loại r�
                                   (best.pt)
                                        │
                               ┌────────┴────────┐
-                              │   4 loại rác:    │
-                              │ 1=Organic        │
-                              │ 2=Recyclable     │
-                              │ 3=Inorganic      │
-                              │ 4=Hazardous      │
+                              │   4 loại rác:   │
+                              │ 1=Organic       │
+                              │ 2=Recyclable    │
+                              │ 3=Inorganic     │
+                              │ 4=Hazardous     │
                               └─────────────────┘
 ```
 

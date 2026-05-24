@@ -37,6 +37,19 @@ last_detection = {
     "timestamp": 0
 }
 
+# Trạng thái cửa thùng rác (để ESP32 poll)
+door_state = {
+    "open": False,
+    "timestamp": 0
+}
+
+# Dữ liệu pin gần nhất (để Web app hiển thị dashboard)
+battery_state = {
+    "voltage": 12.0,
+    "percent": 50,
+    "timestamp": 0
+}
+
 # Thư mục lưu ảnh upload
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), "uploads")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -124,6 +137,42 @@ def status():
         "model": MODEL_PATH,
         "last_detection": last_detection
     })
+
+@app.route("/open_door", methods=["POST"])
+def open_door():
+    """Web app gọi API này để yêu cầu mở cửa thùng rác"""
+    global door_state
+    ts = int(time.time() * 1000)
+    door_state["open"] = True
+    door_state["timestamp"] = ts
+    print(f"Receive open_door request: timestamp={ts}")
+    return jsonify({
+        "success": True,
+        "message": "Door open command sent",
+        "timestamp": ts
+    })
+
+@app.route("/door_status", methods=["GET"])
+def door_status():
+    """ESP32 poll API này để lấy trạng thái cửa (và reset sau khi ESP32 đọc)"""
+    global door_state
+    res = jsonify(door_state)
+    # Reset sau khi ESP32 đọc lần sau
+    door_state["open"] = False
+    return res
+
+@app.route("/battery", methods=["POST", "GET"])
+def battery():
+    """POST: ESP32 gui du lieu pin | GET: Web app lay du lieu pin"""
+    global battery_state
+    if request.method == "POST":
+        data = request.get_json(silent=True) or {}
+        battery_state["voltage"] = data.get("voltage", 0.0)
+        battery_state["percent"] = data.get("percent", 0)
+        battery_state["timestamp"] = int(time.time() * 1000)
+        print(f"[BATTERY] Nhận: {battery_state['voltage']}V, {battery_state['percent']}%")
+        return jsonify({"success": True})
+    return jsonify(battery_state)
 
 if __name__ == "__main__":
     print("=" * 50)

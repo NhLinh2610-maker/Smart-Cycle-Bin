@@ -85,6 +85,76 @@
             color: #fff;
             flex: 0.5;
         }
+        .btn-open-door {
+            background: linear-gradient(135deg, #2196f3, #1976d2);
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(33, 150, 243, 0.4);
+            font-size: 16px;
+        }
+        /* ===== BATTERY DASHBOARD ===== */
+        .battery-box {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            margin: 8px 0;
+            width: 100%;
+            max-width: 480px;
+            border: 1px solid rgba(78, 204, 163, 0.3);
+        }
+        .battery-icon {
+            position: relative;
+            width: 48px;
+            height: 24px;
+            border: 2px solid #4ecca3;
+            border-radius: 4px;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        .battery-icon::after {
+            content: '';
+            position: absolute;
+            right: -6px;
+            top: 6px;
+            width: 4px;
+            height: 8px;
+            background: #4ecca3;
+            border-radius: 0 2px 2px 0;
+        }
+        .battery-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #f44336, #ff9800, #4ecca3);
+            transition: width 0.5s ease;
+        }
+        .battery-fill.low { background: #f44336; }
+        .battery-fill.medium { background: #ff9800; }
+        .battery-fill.good { background: #4ecca3; }
+        .battery-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 10px;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+            z-index: 2;
+        }
+        .battery-info {
+            flex: 1;
+        }
+        .battery-label {
+            font-size: 14px;
+            color: #4ecca3;
+            font-weight: bold;
+        }
+        .battery-voltage {
+            font-size: 12px;
+            color: #aaa;
+        }
         .result-box {
             width: 100%;
             max-width: 480px;
@@ -169,12 +239,27 @@
         <div class="status" id="serverStatus">Đang kết nối server...</div>
     </div>
 
+    <!-- ===== BATTERY DASHBOARD ===== -->
+    <div class="battery-box" id="batteryBox">
+        <div class="battery-icon">
+            <div class="battery-fill" id="batteryFill"></div>
+            <span class="battery-text" id="batteryText">--%</span>
+        </div>
+        <div class="battery-info">
+            <div class="battery-label">🔋 Pin 3S 18650</div>
+            <div class="battery-voltage" id="batteryVoltage">-- V</div>
+        </div>
+    </div>
+
     <div class="camera-container">
         <video id="video" autoplay playsinline></video>
     </div>
     <canvas id="canvas"></canvas>
 
     <div class="controls">
+        <div class="btn-row">
+            <button class="btn btn-open-door" onclick="openDoor()">🚪 Mở cửa lấy rác</button>
+        </div>
         <div class="btn-row">
             <button class="btn btn-switch" onclick="switchCamera()">🔄</button>
             <button class="btn btn-capture" onclick="captureAndDetect()">📸 Chụp & Nhận diện</button>
@@ -218,21 +303,19 @@
         const autoBtn = document.getElementById('autoBtn');
 
         let currentStream = null;
-        let facingMode = 'environment'; // Camera sau mặc định
+        let facingMode = 'environment'; // Camera sau mac dinh
         let autoMode = false;
         let autoInterval = null;
         let isDetecting = false;
 
-        // Khởi tạo camera
+        // Khoi tao camera
         async function initCamera() {
-            // Kiểm tra HTTPS hoặc localhost
             const isSecure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
             if (!isSecure && navigator.mediaDevices === undefined) {
                 document.getElementById('serverStatus').textContent = '⚠️ Cần HTTPS! Dùng: ngrok http 5000';
                 showToast('⚠️ Camera cần HTTPS! Chạy: ngrok http 5000');
                 return;
             }
-            // Polyfill cho HTTP cũ
             if (navigator.mediaDevices === undefined) {
                 navigator.mediaDevices = {};
             }
@@ -269,14 +352,14 @@
             }
         }
 
-        // Đổi camera trước/sau
+        // Doi camera truoc/sau
         function switchCamera() {
             facingMode = facingMode === 'environment' ? 'user' : 'environment';
             initCamera();
             showToast(facingMode === 'environment' ? '📷 Camera sau' : '🤳 Camera trước');
         }
 
-        // Chụp ảnh và nhận diện
+        // Chup anh va nhan dien
         async function captureAndDetect() {
             if (isDetecting) return;
             isDetecting = true;
@@ -288,11 +371,11 @@
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(video, 0, 0);
 
-                // Hiện preview
+                // Hien preview
                 preview.src = canvas.toDataURL('image/jpeg', 0.8);
                 preview.style.display = 'block';
 
-                // Gửi lên server
+                // Gui len server
                 canvas.toBlob(async (blob) => {
                     const formData = new FormData();
                     formData.append('image', blob, 'capture.jpg');
@@ -319,7 +402,7 @@
             }
         }
 
-        // Cập nhật hiển thị kết quả
+        // Cap nhat hien thi ket qua
         function updateResult(data) {
             const classNames = {
                 0: 'Không phát hiện',
@@ -352,7 +435,7 @@
             }
         }
 
-        // Bật/tắt chế độ tự động
+        // Bat/tat che do tu dong
         function toggleAuto() {
             autoMode = !autoMode;
             autoBtn.classList.toggle('active', autoMode);
@@ -370,7 +453,63 @@
             }
         }
 
-        // Toast thông báo
+        // Mo cua thung rac tu web app
+        async function openDoor() {
+            try {
+                const btn = document.querySelector('.btn-open-door');
+                btn.disabled = true;
+                btn.textContent = '⏳ Đang mở...';
+                loading.classList.add('show');
+
+                const resp = await fetch('/open_door', { method: 'POST' });
+                const data = await resp.json();
+
+                if (data.success) {
+                    showToast('🚪 Yêu cầu mở cửa đã gửi!');
+                } else {
+                    showToast('❌ Lỗi: ' + data.message);
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('❌ Lỗi kết nối server');
+            } finally {
+                setTimeout(() => {
+                    loading.classList.remove('show');
+                    const btn = document.querySelector('.btn-open-door');
+                    btn.disabled = false;
+                    btn.textContent = '🚪 Mở cửa lấy rác';
+                }, 1500);
+            }
+        }
+
+        // ===== BATTERY DASHBOARD =====
+        let batteryInterval = null;
+        async function updateBattery() {
+            try {
+                const resp = await fetch('/battery');
+                const data = await resp.json();
+                const percent = data.percent || 0;
+                const voltage = data.voltage || 0;
+
+                const fill = document.getElementById('batteryFill');
+                const text = document.getElementById('batteryText');
+                const volt = document.getElementById('batteryVoltage');
+
+                fill.style.width = percent + '%';
+                text.textContent = percent + '%';
+                volt.textContent = voltage.toFixed(2) + ' V';
+
+                // Color class based on level
+                fill.classList.remove('low', 'medium', 'good');
+                if (percent <= 20) fill.classList.add('low');
+                else if (percent <= 50) fill.classList.add('medium');
+                else fill.classList.add('good');
+            } catch (err) {
+                console.error('Battery fetch error:', err);
+            }
+        }
+
+        // Toast thong bao
         function showToast(msg) {
             const toast = document.getElementById('toast');
             toast.textContent = msg;
@@ -378,8 +517,14 @@
             setTimeout(() => toast.classList.remove('show'), 2000);
         }
 
-        // Khởi động
+        // Khoi dong
         initCamera();
+        // Start battery polling
+        updateBattery();
+        batteryInterval = setInterval(updateBattery, 5000);
+        window.addEventListener('beforeunload', () => {
+            if (batteryInterval) clearInterval(batteryInterval);
+        });
     </script>
 </body>
 </html>

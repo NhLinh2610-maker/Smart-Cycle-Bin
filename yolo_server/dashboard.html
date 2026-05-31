@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>AI Smart Waste Dashboard - Live</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Rajdhani:wght@300;400;500;600&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root{--bg-deep:#030a14;--bg-panel:#0b1a2c;--bg-card:#0e2236;--bg-card2:#081828;--accent:#00d4ff;--accent2:#00ff88;--accent3:#f97316;--danger:#ff3b5c;--warn:#f59e0b;--text:#cfe8ff;--text-dim:#4a7a9b;--border:rgba(0,212,255,0.18);--glow:0 0 18px rgba(0,212,255,0.35);--header-h:110px}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg-deep);color:var(--text);font-family:'Rajdhani',sans-serif;min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,212,255,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,0.04) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
+body::after{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 0%,rgba(0,100,180,0.18) 0%,transparent 70%);pointer-events:none;z-index:0}
+.sticky-header{position:fixed;top:0;left:0;right:0;z-index:500;background:rgba(3,10,20,0.88);backdrop-filter:blur(16px) saturate(1.6);border-bottom:1px solid var(--border);box-shadow:0 4px 32px rgba(0,0,0,0.5)}
+.sticky-header::after{content:'';position:absolute;bottom:0;left:10%;right:10%;height:1px;background:linear-gradient(90deg,transparent,var(--accent) 50%,transparent);opacity:.5}
+.header-inner{max-width:1400px;margin:0 auto;padding:14px 20px 12px;display:flex;flex-direction:column;align-items:center;gap:4px}
+.header-badge{display:inline-block;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:4px;color:var(--accent);background:rgba(0,212,255,0.08);border:1px solid var(--border);padding:3px 14px;border-radius:2px;text-transform:uppercase}
+.header-inner h1{font-family:'Orbitron',monospace;font-size:clamp(18px,3.5vw,34px);font-weight:900;letter-spacing:3px;background:linear-gradient(135deg,#fff 0%,var(--accent) 50%,var(--accent2) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;white-space:nowrap}
+.header-inner p{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text-dim);letter-spacing:2px}
+.wrapper{position:relative;z-index:1;max-width:1400px;margin:0 auto;padding:calc(var(--header-h) + 24px) 20px 40px}
+.live-dot{display:inline-block;width:8px;height:8px;background:var(--accent2);border-radius:50%;margin-right:8px;animation:pulse 1.5s ease-in-out infinite;box-shadow:0 0 8px var(--accent2)}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
+.team-section{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:22px 28px;margin-bottom:28px;position:relative;overflow:hidden}
+.team-section::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent)}
+.team-section h2{font-family:'Orbitron',monospace;font-size:13px;letter-spacing:3px;color:var(--accent);text-transform:uppercase;margin-bottom:18px}
+.team-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:600px){.team-grid{grid-template-columns:1fr}}
+.info-box h3{font-size:12px;letter-spacing:2px;color:var(--text-dim);text-transform:uppercase;margin-bottom:10px;font-family:'Share Tech Mono',monospace}
+.info-box p{font-size:16px;color:var(--accent2);font-weight:600}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:2px;color:var(--text-dim);text-transform:uppercase;padding:8px 10px;text-align:left;border-bottom:1px solid var(--border)}
+td{padding:9px 10px;color:var(--text);border-bottom:1px solid rgba(0,212,255,0.06);font-weight:500}
+tr:last-child td{border-bottom:none}
+td:first-child{color:var(--text-dim);font-family:'Share Tech Mono',monospace;font-size:12px}
+td:last-child{font-family:'Share Tech Mono',monospace;color:var(--accent);font-size:13px}
+.dashboard{display:grid;grid-template-columns:repeat(12,1fr);gap:18px}
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:22px;position:relative;overflow:hidden;transition:border-color .3s,transform .3s,box-shadow .3s;animation:fadeSlideIn .5s ease both}
+.card:hover{border-color:rgba(0,212,255,.5);transform:translateY(-2px);box-shadow:var(--glow)}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--accent) 50%,transparent);opacity:.5}
+@keyframes fadeSlideIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.card:nth-child(1){animation-delay:.05s}.card:nth-child(2){animation-delay:.10s}.card:nth-child(3){animation-delay:.15s}.card:nth-child(4){animation-delay:.20s}.card:nth-child(5){animation-delay:.25s}.card:nth-child(6){animation-delay:.30s}.card:nth-child(7){animation-delay:.35s}.card:nth-child(8){animation-delay:.40s}
+.col-3{grid-column:span 3}.col-4{grid-column:span 4}.col-6{grid-column:span 6}.col-8{grid-column:span 8}.col-12{grid-column:span 12}
+@media(max-width:900px){.col-3,.col-4,.col-6{grid-column:span 6}}
+@media(max-width:560px){.col-3,.col-4,.col-6,.col-8,.col-12{grid-column:span 12}}
+.card-label{font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:3px;color:var(--text-dim);text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.card-value{font-family:'Orbitron',monospace;font-size:40px;font-weight:800;color:#fff;letter-spacing:2px;line-height:1;margin-bottom:10px}
+.card-value.accent{color:var(--accent)}.card-value.green{color:var(--accent2)}.card-value.orange{color:var(--accent3)}.card-value.danger{color:var(--danger)}
+.card-sub{font-size:12px;letter-spacing:1.5px;color:var(--text-dim);text-transform:uppercase;display:flex;align-items:center;gap:6px}
+.fill-bar-wrap{margin-top:14px;background:rgba(255,255,255,.05);border-radius:4px;height:6px;overflow:hidden}
+.fill-bar{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--accent2),var(--accent));transition:width .8s cubic-bezier(.4,0,.2,1);box-shadow:0 0 10px var(--accent)}
+.prediction-card{background:linear-gradient(135deg,rgba(255,59,92,.12),rgba(11,26,44,.9));border-color:rgba(255,59,92,.35) !important}
+.prediction-card::before{background:linear-gradient(90deg,transparent,var(--danger) 50%,transparent)}
+.status-row{display:flex;align-items:center;gap:8px;margin-top:10px}
+.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dot-green{background:var(--accent2);box-shadow:0 0 8px var(--accent2)}.dot-orange{background:var(--accent3);box-shadow:0 0 8px var(--accent3)}.dot-red{background:var(--danger);box-shadow:0 0 8px var(--danger)}
+.btn-group{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.btn{padding:11px 20px;border:none;border-radius:8px;cursor:pointer;font-family:'Orbitron',monospace;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;transition:all .25s;position:relative;overflow:hidden}
+.btn:hover{transform:translateY(-2px) scale(1.04)}.btn:active{transform:scale(.97)}
+.btn-open{background:linear-gradient(135deg,#00c267,#00ff88);color:#003a1f;box-shadow:0 4px 20px rgba(0,255,136,.25)}
+.btn-close{background:linear-gradient(135deg,#d42045,#ff3b5c);color:#fff;box-shadow:0 4px 20px rgba(255,59,92,.25)}
+.chart-container{position:relative;height:280px;margin-top:14px}
+.camera-wrap{margin-top:14px;border-radius:8px;overflow:hidden;position:relative;height:260px;background:#000}
+.camera-hud{position:absolute;top:12px;left:12px;font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--accent2);letter-spacing:2px;display:flex;align-items:center;gap:8px}
+.camera-hud-corner{position:absolute;top:0;left:0;width:20px;height:20px;border-top:2px solid var(--accent);border-left:2px solid var(--accent)}
+.camera-hud-corner.tr{top:0;right:0;left:auto;border-left:none;border-right:2px solid var(--accent)}
+.camera-hud-corner.bl{top:auto;bottom:0;border-top:none;border-bottom:2px solid var(--accent)}
+.camera-hud-corner.br{top:auto;bottom:0;right:0;left:auto;border:none;border-bottom:2px solid var(--accent);border-right:2px solid var(--accent)}
+.scan-line{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,rgba(0,212,255,.6),transparent);animation:scanline 3s linear infinite;pointer-events:none}
+@keyframes scanline{from{top:0%}to{top:100%}}
+.clickable-card{cursor:pointer}
+.clickable-card:hover .card-label{color:var(--accent)}
+.mini-stats{display:flex;gap:16px;margin-top:12px;flex-wrap:wrap}
+.mini-stat{flex:1;min-width:80px;background:rgba(0,212,255,.05);border:1px solid var(--border);border-radius:8px;padding:10px 12px;text-align:center}
+.mini-stat-val{font-family:'Orbitron',monospace;font-size:18px;font-weight:700;color:#fff}
+.mini-stat-lbl{font-size:10px;letter-spacing:1.5px;color:var(--text-dim);text-transform:uppercase;margin-top:4px}
+.waste-badge{display:inline-block;padding:4px 14px;border-radius:20px;font-size:11px;font-family:'Share Tech Mono',monospace;letter-spacing:2px;text-transform:uppercase;background:rgba(0,255,136,.12);border:1px solid rgba(0,255,136,.3);color:var(--accent2);margin-top:8px}
+</style>
+</head>
+<body>
+<header class="sticky-header">
+  <div class="header-inner">
+    <div class="header-badge">⬡ IoT System v3.2.1</div>
+    <h1>AI SMART WASTE MANAGEMENT</h1>
+    <p><span class="live-dot"></span>Realtime IoT Dashboard &nbsp;&middot;&nbsp; Node 6 &ndash; HCMC Sector</p>
+  </div>
+</header>
+
+<div class="wrapper">
+  <div class="team-section">
+    <h2>// Project Information</h2>
+    <div class="team-grid">
+      <div class="info-box">
+        <h3>Giảng vi&ecirc;n hướng dẫn</h3>
+        <p>ThS. L&ecirc; Minh Kh&aacute;nh Hội</p>
+      </div>
+      <div class="info-box">
+        <h3>Nh&oacute;m sinh vi&ecirc;n &ndash; Nh&oacute;m 6</h3>
+        <table>
+          <tr><th>STT</th><th>Họ v&agrave; t&ecirc;n</th><th>MSSV</th></tr>
+          <tr><td>01</td><td>Ng&ocirc; Kim Th&agrave;nh</td><td>23521447</td></tr>
+          <tr><td>02</td><td>Nguyễn Th&aacute;i H&ugrave;ng</td><td>24520613</td></tr>
+          <tr><td>03</td><td>Ng&ocirc; Nhật Linh</td><td>24520961</td></tr>
+          <tr><td>04</td><td>Phạm Đức Long</td><td>24521010</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="dashboard">
+    <!-- Fill Level -->
+    <div class="card col-3">
+      <div class="card-label">Fill Level</div>
+      <div class="card-value accent" id="fillLevel">--%</div>
+      <div class="fill-bar-wrap"><div class="fill-bar" id="fillBar" style="width:0%"></div></div>
+      <div class="status-row" style="margin-top:12px;"><div class="dot dot-green"></div><span class="card-sub" id="fillStatus">Tổng thể: Bình thường</span></div>
+    </div>
+
+    <!-- Temperature -->
+    <div class="card col-3">
+      <div class="card-label">Temperature</div>
+      <div class="card-value orange" id="temp">--&deg;C</div>
+      <div class="status-row"><div class="dot dot-orange"></div><span class="card-sub">Slightly elevated</span></div>
+    </div>
+
+    <!-- Battery -->
+    <div class="card col-3">
+      <div class="card-label">Battery</div>
+      <div class="card-value green" id="batteryValue">--%</div>
+      <div class="status-row" style="margin-top:8px;"><div class="dot dot-green" id="batteryDot"></div><span class="card-sub" id="batteryStatus">Charged</span></div>
+    </div>
+
+    <!-- Detected Waste -->
+    <div class="card col-3">
+      <div class="card-label">Detected Waste</div>
+      <div class="card-value" id="wasteType" style="font-size:24px;">--</div>
+      <div><span class="waste-badge" id="wasteBadge">--</span></div>
+      <div class="mini-stats">
+        <div class="mini-stat"><div class="mini-stat-val" id="wasteConf">--%</div><div class="mini-stat-lbl">Conf.</div></div>
+        <div class="mini-stat"><div class="mini-stat-val" id="totalCount">--</div><div class="mini-stat-lbl">Total</div></div>
+      </div>
+    </div>
+
+    <!-- AI Prediction -->
+    <div class="card col-4 prediction-card">
+      <div class="card-label">AI Prediction</div>
+      <div class="card-value danger" style="font-size:22px;line-height:1.2;"><span id="predictionText">ANALYZING...</span></div>
+      <div class="status-row" style="margin-top:12px;"><div class="dot dot-red"></div><span class="card-sub" style="color:var(--danger);" id="predictionStatus">WAITING DATA</span></div>
+      <div style="margin-top:14px;font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text-dim);letter-spacing:1px;">Based on detection history</div>
+    </div>
+
+    <!-- Remote Control -->
+    <div class="card col-8">
+      <div class="card-label">Remote Control</div>
+      <div style="font-size:13px;color:var(--text-dim);margin-bottom:14px;letter-spacing:1px;">Send commands to bin hardware via API</div>
+      <div class="btn-group">
+        <button class="btn btn-open" onclick="openBin()">⬛ Open Bin</button>
+        <button class="btn btn-close" onclick="closeBin()">✖ Close Bin</button>
+      </div>
+      <div style="margin-top:16px;padding:12px 14px;background:rgba(0,212,255,.04);border:1px solid var(--border);border-radius:8px;">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text-dim);letter-spacing:2px;">SERVER STATUS</div>
+        <div style="margin-top:6px;display:flex;align-items:center;gap:8px;"><div class="dot dot-green" id="serverDot"></div><span style="font-size:13px;color:var(--accent2);" id="serverStatus">Connected</span></div>
+      </div>
+    </div>
+
+    <!-- Chart -->
+    <div class="card col-12">
+      <div class="card-label">Waste Analytics</div>
+      <div class="chart-container">
+        <canvas id="mainChart" role="img" aria-label="Biểu đồ phân tích rác thải"></canvas>
+      </div>
+    </div>
+
+    <!-- Recent Detections Table -->
+    <div class="card col-12">
+      <div class="card-label">Recent Detections</div>
+      <table style="font-size:13px;">
+        <thead><tr><th>Time</th><th>Type</th><th>Confidence</th><th>ID</th></tr></thead>
+        <tbody id="recentTable"></tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ========== CONFIG ==========
+const BASE = window.location.origin; // ví dụ: http://localhost:5000
+function fetchJson(path) {
+  return fetch(BASE + path).then(r => r.json());
+}
+
+// ========== CHART ==========
+let currentChart = null;
+function buildChart(labels, data) {
+  if (currentChart) { currentChart.destroy(); currentChart = null; }
+  const ctx = document.getElementById('mainChart').getContext('2d');
+  currentChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Số lần phát hiện',
+        data: data,
+        backgroundColor: ['rgba(0,212,255,.7)', 'rgba(0,255,136,.7)', 'rgba(255,59,92,.7)', 'rgba(158,158,158,.3)'],
+        borderColor: ['rgba(0,212,255,1)', 'rgba(0,255,136,1)', 'rgba(255,59,92,1)', 'rgba(158,158,158,1)'],
+        borderWidth: 1, borderRadius: 6
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#4a7a9b', font: { family: "'Share Tech Mono',monospace", size: 11 } } } },
+      scales: {
+        x: { ticks: { color: '#4a7a9b', font: { family: "'Share Tech Mono',monospace", size: 10 } }, grid: { color: 'rgba(0,212,255,.06)' } },
+        y: { ticks: { color: '#4a7a9b', font: { family: "'Share Tech Mono',monospace", size: 10 } }, grid: { color: 'rgba(0,212,255,.06)' }, beginAtZero: true }
+      }
+    }
+  });
+}
+
+// ========== UPDATE DASHBOARD ==========
+function updateDashboard(stats) {
+  const counts = stats.counts || {};
+  const battery = stats.battery || {};
+  const last = stats.last_detection || {};
+
+  // Battery
+  const pct = battery.percent || 0;
+  document.getElementById('batteryValue').textContent = pct + '%';
+  const bdot = document.getElementById('batteryDot');
+  if (pct <= 20) { bdot.className = 'dot dot-red'; }
+  else if (pct <= 50) { bdot.className = 'dot dot-orange'; }
+  else { bdot.className = 'dot dot-green'; }
+  document.getElementById('batteryStatus').textContent = pct <= 20 ? 'Low' : pct <= 50 ? 'Medium' : 'Charged';
+
+  // Waste
+    const wmap = {1:'Organic',2:'Recyclable',3:'Hazardous'};
+    const bmap = {1:'Compostable',2:'Recyclable',3:'Hazardous',0:'--'};
+  const cid = last.class_id || 0;
+  document.getElementById('wasteType').textContent = wmap[cid] || (last.class_name || 'Unknown');
+  document.getElementById('wasteBadge').textContent = bmap[cid] || 'Unknown';
+  document.getElementById('wasteConf').textContent = last.confidence ? (last.confidence * 100).toFixed(1) + '%' : '--';
+  document.getElementById('totalCount').textContent = stats.total_detections || 0;
+
+  // Fill Level (mock từ tổng detections)
+  const total = stats.total_detections || 0;
+  const fill = Math.min((total / 50) * 100, 100).toFixed(0);
+  document.getElementById('fillLevel').textContent = fill + '%';
+  document.getElementById('fillBar').style.width = fill + '%';
+  document.getElementById('fillStatus').textContent = fill >= 90 ? 'Đầy – cần thu gom!' : 'Tổng thể: Bình thường';
+
+  // Prediction
+  const maxKey = Object.keys(counts).reduce((a,b)=>counts[a]>counts[b]?a:b, 'unknown');
+const predMap = {organic:'Organic Waste',recyclable:'Recyclable Waste',hazardous:'Hazardous Waste',unknown:'Unknown'};
+  document.getElementById('predictionText').textContent = total > 0 ? (predMap[maxKey] || maxKey).toUpperCase() : 'NO DATA';
+  document.getElementById('predictionStatus').textContent = total > 0 ? 'PREDICTION ACTIVE' : 'WAITING DATA';
+
+  // Chart
+    const chartLabels = ['Organic','Recyclable','Hazardous','Unknown'];
+    const chartData = [counts.organic||0, counts.recyclable||0, counts.hazardous||0, counts.unknown||0];
+  buildChart(chartLabels, chartData);
+}
+
+// ========== RECENT DETECTIONS ==========
+function updateRecentTable(detections) {
+  const tbody = document.getElementById('recentTable');
+  tbody.innerHTML = '';
+  if (!detections || !detections.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-dim)">Chưa có dữ liệu</td></tr>';
+    return;
+  }
+    const wmap = {1:'Organic',2:'Recyclable',3:'Hazardous'};
+    detections.slice(Math.max(detections.length-10,0)).reverse().forEach(d => {
+    const tr = document.createElement('tr');
+    const ts = new Date(d.timestamp);
+    tr.innerHTML = '<td>'+ts.toLocaleTimeString('vi-VN')+'</td>'
+      +'<td>'+(wmap[d.class_id] || (d.class_name || 'Unknown'))+'</td>'
+      +'<td>'+(d.confidence?(d.confidence*100).toFixed(1):0)+'%</td>'
+      +'<td>'+(d.class_id||0)+'</td>';
+    tbody.appendChild(tr);
+  });
+}
+
+// ========== POLLING ==========
+async function pollData() {
+  try {
+    const stats = await fetchJson('/api/stats');
+    updateDashboard(stats);
+    const det = await fetchJson('/api/detections');
+    updateRecentTable(det.detections || []);
+    document.getElementById('serverStatus').textContent = 'Connected · ' + new Date().toLocaleTimeString('vi-VN');
+    document.getElementById('serverDot').className = 'dot dot-green';
+  } catch (e) {
+    console.error(e);
+    document.getElementById('serverStatus').textContent = 'Disconnected';
+    document.getElementById('serverDot').className = 'dot dot-red';
+  }
+}
+
+// Remote Control
+function openBin() {
+  fetch(BASE + '/open_door', {method:'POST'}).then(r=>r.json()).then(d=>alert(d.message||'OK')).catch(e=>alert('Error'));
+}
+function closeBin() {
+  alert('Close command sent (mock)');
+}
+
+// Init
+pollData();
+setInterval(pollData, 3000);
+</script>
+</body>
+</html>

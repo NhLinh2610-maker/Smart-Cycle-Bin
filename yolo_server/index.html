@@ -26,11 +26,70 @@
         }
         .header h1 { font-size: 18px; color: #4ecca3; }
         .header .status { font-size: 12px; color: #aaa; margin-top: 4px; }
-        .camera-container {
+
+        /* ===== BATTERY ===== */
+        .battery-box {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            margin: 8px 0;
+            width: 100%;
+            max-width: 480px;
+            border: 1px solid rgba(78, 204, 163, 0.3);
+        }
+        .battery-icon {
+            position: relative;
+            width: 48px;
+            height: 24px;
+            border: 2px solid #4ecca3;
+            border-radius: 4px;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        .battery-icon::after {
+            content: '';
+            position: absolute;
+            right: -6px;
+            top: 6px;
+            width: 4px;
+            height: 8px;
+            background: #4ecca3;
+            border-radius: 0 2px 2px 0;
+        }
+        .battery-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #f44336, #ff9800, #4ecca3);
+            transition: width 0.5s ease;
+        }
+        .battery-fill.low    { background: #f44336; }
+        .battery-fill.medium { background: #ff9800; }
+        .battery-fill.good   { background: #4ecca3; }
+        .battery-text {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 10px; font-weight: bold; color: #fff;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+            z-index: 2;
+        }
+        .battery-info { flex: 1; }
+        .battery-label  { font-size: 14px; color: #4ecca3; font-weight: bold; }
+        .battery-voltage { font-size: 12px; color: #aaa; }
+
+        /* ===== CAMERA ===== */
+        .camera-wrapper {
             width: 100%;
             max-width: 480px;
             position: relative;
             margin: 12px 0;
+        }
+        .camera-container {
+            width: 100%;
+            position: relative;
             border-radius: 12px;
             overflow: hidden;
             border: 2px solid #4ecca3;
@@ -39,13 +98,54 @@
             width: 100%;
             display: block;
             transform: scaleX(-1);
+            transition: transform 0.2s ease;
         }
         #canvas { display: none; }
+
+        /* Zoom badge overlay trên camera */
+        .zoom-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.6);
+            color: #4ecca3;
+            font-size: 13px;
+            font-weight: bold;
+            padding: 4px 10px;
+            border-radius: 20px;
+            border: 1px solid rgba(78, 204, 163, 0.5);
+            pointer-events: none;
+            backdrop-filter: blur(4px);
+            transition: opacity 0.3s;
+            z-index: 10;
+        }
+        .zoom-badge.hidden { opacity: 0; }
+
+        /* Flash indicator overlay */
+        .flash-badge {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(255, 200, 0, 0.15);
+            color: #ffc800;
+            font-size: 13px;
+            font-weight: bold;
+            padding: 4px 10px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 200, 0, 0.4);
+            pointer-events: none;
+            backdrop-filter: blur(4px);
+            display: none;
+            z-index: 10;
+        }
+        .flash-badge.show { display: block; }
+
+        /* ===== CONTROLS ===== */
         .controls {
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
             padding: 8px;
             width: 100%;
             max-width: 480px;
@@ -85,76 +185,130 @@
             color: #fff;
             flex: 0.5;
         }
-        .btn-open-door {
-            background: linear-gradient(135deg, #2196f3, #1976d2);
-            color: #fff;
-            box-shadow: 0 4px 15px rgba(33, 150, 243, 0.4);
-            font-size: 16px;
+
+        /* ===== FLASH BUTTON ===== */
+        .btn-flash {
+            background: linear-gradient(135deg, #3a3000, #5a4a00);
+            color: #ffc800;
+            border: 1px solid rgba(255, 200, 0, 0.3);
+            flex: 0.5;
+            transition: all 0.2s;
         }
-        /* ===== BATTERY DASHBOARD ===== */
-        .battery-box {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 16px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 12px;
-            margin: 8px 0;
+        .btn-flash.on {
+            background: linear-gradient(135deg, #ffc800, #e0a800);
+            color: #1a1a2e;
+            border: none;
+            box-shadow: 0 4px 15px rgba(255, 200, 0, 0.5);
+        }
+        .btn-flash.unsupported {
+            background: rgba(100,100,100,0.2);
+            color: #555;
+            border: 1px solid #333;
+            cursor: not-allowed;
+        }
+        .btn-flash:active { transform: scale(0.95); }
+
+        /* ===== ZOOM PANEL ===== */
+        .zoom-panel {
             width: 100%;
-            max-width: 480px;
-            border: 1px solid rgba(78, 204, 163, 0.3);
+            padding: 12px 16px;
+            background: rgba(255,255,255,0.04);
+            border-radius: 12px;
+            border: 1px solid rgba(78, 204, 163, 0.2);
+            display: none; /* hiện khi camera ready */
         }
-        .battery-icon {
-            position: relative;
-            width: 48px;
-            height: 24px;
-            border: 2px solid #4ecca3;
-            border-radius: 4px;
-            overflow: hidden;
-            flex-shrink: 0;
+        .zoom-panel.show { display: block; }
+        .zoom-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
         }
-        .battery-icon::after {
-            content: '';
-            position: absolute;
-            right: -6px;
-            top: 6px;
-            width: 4px;
-            height: 8px;
-            background: #4ecca3;
-            border-radius: 0 2px 2px 0;
-        }
-        .battery-fill {
-            height: 100%;
-            width: 0%;
-            background: linear-gradient(90deg, #f44336, #ff9800, #4ecca3);
-            transition: width 0.5s ease;
-        }
-        .battery-fill.low { background: #f44336; }
-        .battery-fill.medium { background: #ff9800; }
-        .battery-fill.good { background: #4ecca3; }
-        .battery-text {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 10px;
-            font-weight: bold;
-            color: #fff;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
-            z-index: 2;
-        }
-        .battery-info {
-            flex: 1;
-        }
-        .battery-label {
-            font-size: 14px;
+        .zoom-title {
+            font-size: 13px;
             color: #4ecca3;
             font-weight: bold;
         }
-        .battery-voltage {
-            font-size: 12px;
-            color: #aaa;
+        .zoom-value {
+            font-size: 13px;
+            color: #fff;
+            font-weight: bold;
+            min-width: 40px;
+            text-align: right;
         }
+        .zoom-mode-tag {
+            font-size: 10px;
+            padding: 2px 7px;
+            border-radius: 10px;
+            margin-left: 6px;
+            font-weight: bold;
+        }
+        .zoom-mode-tag.hw  { background: rgba(78,204,163,0.2); color: #4ecca3; border: 1px solid rgba(78,204,163,0.4); }
+        .zoom-mode-tag.css { background: rgba(255,152,0,0.2);  color: #ff9800; border: 1px solid rgba(255,152,0,0.4); }
+
+        /* Slider */
+        .zoom-slider-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .zoom-icon { font-size: 14px; color: #aaa; }
+        input[type="range"].zoom-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            flex: 1;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255,255,255,0.1);
+            outline: none;
+            cursor: pointer;
+        }
+        input[type="range"].zoom-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4ecca3, #38b28a);
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(78, 204, 163, 0.5);
+            transition: transform 0.1s;
+        }
+        input[type="range"].zoom-slider::-webkit-slider-thumb:active {
+            transform: scale(1.2);
+        }
+        input[type="range"].zoom-slider::-moz-range-thumb {
+            width: 22px;
+            height: 22px;
+            border: none;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4ecca3, #38b28a);
+            cursor: pointer;
+        }
+        /* Zoom preset buttons */
+        .zoom-presets {
+            display: flex;
+            gap: 6px;
+            margin-top: 8px;
+        }
+        .zoom-preset-btn {
+            flex: 1;
+            padding: 5px 0;
+            border: 1px solid rgba(78, 204, 163, 0.3);
+            border-radius: 6px;
+            background: rgba(78, 204, 163, 0.05);
+            color: #4ecca3;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .zoom-preset-btn:active { transform: scale(0.95); }
+        .zoom-preset-btn.active {
+            background: rgba(78, 204, 163, 0.25);
+            border-color: #4ecca3;
+        }
+
+        /* ===== RESULT BOX ===== */
         .result-box {
             width: 100%;
             max-width: 480px;
@@ -183,45 +337,40 @@
             margin-top: 8px;
             font-size: 16px;
         }
-        .type-1 { background: rgba(76, 175, 80, 0.3); color: #4caf50; border: 1px solid #4caf50; }
-        .type-2 { background: rgba(33, 150, 243, 0.3); color: #2196f3; border: 1px solid #2196f3; }
-        .type-3 { background: rgba(255, 152, 0, 0.3); color: #ff9800; border: 1px solid #ff9800; }
-        .type-4 { background: rgba(244, 67, 54, 0.3); color: #f44336; border: 1px solid #f44336; }
-        .type-0 { background: rgba(158, 158, 158, 0.3); color: #9e9e9e; border: 1px solid #9e9e9e; }
-        .preview-container {
-            width: 100%;
-            max-width: 480px;
-            margin: 8px 0;
-        }
+        .type-1 { background: rgba(76,175,80,0.3);  color: #4caf50; border: 1px solid #4caf50; }
+        .type-2 { background: rgba(33,150,243,0.3); color: #2196f3; border: 1px solid #2196f3; }
+        .type-3 { background: rgba(244,67,54,0.3);  color: #f44336; border: 1px solid #f44336; }
+        .type-0 { background: rgba(158,158,158,0.3);color: #9e9e9e; border: 1px solid #9e9e9e; }
+
+        /* ===== PREVIEW ===== */
+        .preview-container { width: 100%; max-width: 480px; margin: 8px 0; }
         #preview {
             width: 100%;
             border-radius: 8px;
             display: none;
             border: 1px solid rgba(255,255,255,0.1);
         }
-        .loading {
-            display: none;
-            text-align: center;
-            padding: 20px;
-            color: #4ecca3;
-        }
+
+        /* ===== LOADING ===== */
+        .loading { display: none; text-align: center; padding: 20px; color: #4ecca3; }
         .loading.show { display: block; }
         .spinner {
             border: 3px solid rgba(255,255,255,0.1);
             border-top: 3px solid #4ecca3;
             border-radius: 50%;
-            width: 36px;
-            height: 36px;
+            width: 36px; height: 36px;
             animation: spin 1s linear infinite;
             margin: 0 auto 12px;
         }
         @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        /* ===== TOAST ===== */
         .toast {
             position: fixed;
             bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.85);
             color: #fff;
             padding: 10px 20px;
             border-radius: 20px;
@@ -229,18 +378,22 @@
             z-index: 1000;
             opacity: 0;
             transition: opacity 0.3s;
+            max-width: 90vw;
+            text-align: center;
+            white-space: pre-line;
         }
         .toast.show { opacity: 1; }
     </style>
 </head>
 <body>
+
     <div class="header">
         <h1>🗑️ Smart Bin - AI Waste Detection</h1>
         <div class="status" id="serverStatus">Đang kết nối server...</div>
     </div>
 
-    <!-- ===== BATTERY DASHBOARD ===== -->
-    <div class="battery-box" id="batteryBox">
+    <!-- BATTERY -->
+    <div class="battery-box">
         <div class="battery-icon">
             <div class="battery-fill" id="batteryFill"></div>
             <span class="battery-text" id="batteryText">--%</span>
@@ -251,27 +404,60 @@
         </div>
     </div>
 
-    <div class="camera-container">
-        <video id="video" autoplay playsinline></video>
+    <!-- CAMERA -->
+    <div class="camera-wrapper">
+        <div class="camera-container">
+            <video id="video" autoplay playsinline></video>
+        </div>
+        <div class="zoom-badge hidden" id="zoomBadge">1.0×</div>
+        <div class="flash-badge" id="flashBadge">⚡ Flash ON</div>
     </div>
     <canvas id="canvas"></canvas>
 
+    <!-- CONTROLS -->
     <div class="controls">
+        <!-- Row 1: Switch / Capture / Auto -->
         <div class="btn-row">
-            <button class="btn btn-open-door" onclick="openDoor()">🚪 Mở cửa lấy rác</button>
-        </div>
-        <div class="btn-row">
-            <button class="btn btn-switch" onclick="switchCamera()">🔄</button>
+            <button class="btn btn-switch" onclick="switchCamera()" title="Đổi camera">🔄</button>
             <button class="btn btn-capture" onclick="captureAndDetect()">📸 Chụp & Nhận diện</button>
             <button class="btn btn-auto" id="autoBtn" onclick="toggleAuto()">⏱️ Tự động</button>
         </div>
+        <!-- Row 2: Flash -->
+        <div class="btn-row">
+            <button class="btn btn-flash unsupported" id="flashBtn" onclick="toggleFlash()" title="Bật/Tắt đèn flash">
+                🔦 Flash
+            </button>
+        </div>
     </div>
 
+    <!-- ZOOM PANEL -->
+    <div class="zoom-panel" id="zoomPanel">
+        <div class="zoom-header">
+            <span class="zoom-title">
+                🔍 Zoom
+                <span class="zoom-mode-tag" id="zoomModeTag">--</span>
+            </span>
+            <span class="zoom-value" id="zoomValueLabel">1.0×</span>
+        </div>
+        <div class="zoom-slider-row">
+            <span class="zoom-icon">🔍</span>
+            <input type="range" class="zoom-slider" id="zoomSlider"
+                   min="1" max="5" step="0.1" value="1"
+                   oninput="onZoomSliderChange(this.value)">
+            <span class="zoom-icon">🔎</span>
+        </div>
+        <div class="zoom-presets" id="zoomPresets">
+            <!-- Được tạo động theo capability -->
+        </div>
+    </div>
+
+    <!-- LOADING -->
     <div class="loading" id="loading">
         <div class="spinner"></div>
         <div>Đang nhận diện...</div>
     </div>
 
+    <!-- RESULT -->
     <div class="result-box">
         <h3>📊 Kết quả nhận diện</h3>
         <div class="result-item">
@@ -289,6 +475,7 @@
         <div class="waste-type type-0" id="wasteTypeBadge">Chờ phát hiện...</div>
     </div>
 
+    <!-- PREVIEW -->
     <div class="preview-container">
         <img id="preview" alt="Preview">
     </div>
@@ -296,235 +483,473 @@
     <div class="toast" id="toast"></div>
 
     <script>
-        const video = document.getElementById('video');
-        const canvas = document.getElementById('canvas');
-        const preview = document.getElementById('preview');
-        const loading = document.getElementById('loading');
-        const autoBtn = document.getElementById('autoBtn');
+    // ─────────────────────────────────────────────
+    //  STATE
+    // ─────────────────────────────────────────────
+    const video    = document.getElementById('video');
+    const canvas   = document.getElementById('canvas');
+    const preview  = document.getElementById('preview');
+    const loading  = document.getElementById('loading');
+    const autoBtn  = document.getElementById('autoBtn');
+    const flashBtn = document.getElementById('flashBtn');
+    const flashBadge = document.getElementById('flashBadge');
+    const zoomPanel  = document.getElementById('zoomPanel');
+    const zoomSlider = document.getElementById('zoomSlider');
+    const zoomBadge  = document.getElementById('zoomBadge');
+    const zoomValueLabel = document.getElementById('zoomValueLabel');
+    const zoomModeTag    = document.getElementById('zoomModeTag');
+    const zoomPresets    = document.getElementById('zoomPresets');
 
-        let currentStream = null;
-        let facingMode = 'environment'; // Camera sau mac dinh
-        let autoMode = false;
-        let autoInterval = null;
-        let isDetecting = false;
+    let currentStream    = null;
+    let facingMode       = 'environment';
+    let selectedDeviceId = null;
+    let autoMode         = false;
+    let autoInterval     = null;
+    let isDetecting      = false;
 
-        // Khoi tao camera
-        async function initCamera() {
-            const isSecure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-            if (!isSecure && navigator.mediaDevices === undefined) {
-                document.getElementById('serverStatus').textContent = '⚠️ Cần HTTPS! Dùng: ngrok http 5000';
-                showToast('⚠️ Camera cần HTTPS! Chạy: ngrok http 5000');
-                return;
+    // Flash state
+    let flashSupported = false;
+    let flashOn        = false;
+
+    // Zoom state
+    let zoomMode       = 'none';   // 'hardware' | 'css' | 'none'
+    let zoomMin        = 1.0;
+    let zoomMax        = 1.0;
+    let zoomStep       = 0.1;
+    let currentZoom    = 1.0;
+    let badgeTimer     = null;
+
+    // ─────────────────────────────────────────────
+    //  CAMERA INIT
+    // ─────────────────────────────────────────────
+    async function initCamera() {
+        const isSecure = location.protocol === 'https:'
+            || location.hostname === 'localhost'
+            || location.hostname === '127.0.0.1';
+
+        if (!isSecure && navigator.mediaDevices === undefined) {
+            document.getElementById('serverStatus').textContent = '⚠️ Cần HTTPS! Dùng: ngrok http 5000';
+            showToast('⚠️ Camera cần HTTPS!');
+            return;
+        }
+        if (navigator.mediaDevices === undefined) navigator.mediaDevices = {};
+        if (navigator.mediaDevices.getUserMedia === undefined) {
+            navigator.mediaDevices.getUserMedia = function(c) {
+                const fn = navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+                if (!fn) return Promise.reject(new Error('getUserMedia không được hỗ trợ'));
+                return new Promise((res, rej) => fn.call(navigator, c, res, rej));
+            };
+        }
+
+        // Reset flash & zoom khi đổi camera
+        flashOn = false;
+        flashSupported = false;
+        updateFlashUI();
+
+        try {
+            if (currentStream) currentStream.getTracks().forEach(t => t.stop());
+
+            let constraints = {
+                video: { width: { ideal: 640 }, height: { ideal: 480 } },
+                audio: false
+            };
+            if (selectedDeviceId) {
+                constraints.video.deviceId = { exact: selectedDeviceId };
+            } else {
+                constraints.video.facingMode = facingMode;
             }
-            if (navigator.mediaDevices === undefined) {
-                navigator.mediaDevices = {};
-            }
-            if (navigator.mediaDevices.getUserMedia === undefined) {
-                navigator.mediaDevices.getUserMedia = function(constraints) {
-                    var getUserMedia = navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
-                    if (!getUserMedia) {
-                        return Promise.reject(new Error('getUserMedia không được hỗ trợ'));
-                    }
-                    return new Promise(function(resolve, reject) {
-                        getUserMedia.call(navigator, constraints, resolve, reject);
-                    });
-                };
-            }
+
             try {
-                if (currentStream) {
-                    currentStream.getTracks().forEach(t => t.stop());
-                }
-                const constraints = {
-                    video: {
-                        facingMode: facingMode,
-                        width: { ideal: 640 },
-                        height: { ideal: 480 }
-                    },
-                    audio: false
-                };
                 currentStream = await navigator.mediaDevices.getUserMedia(constraints);
-                video.srcObject = currentStream;
-                document.getElementById('serverStatus').textContent = 'Camera sẵn sàng ✓';
             } catch (err) {
-                console.error('Camera error:', err);
-                document.getElementById('serverStatus').textContent = 'Lỗi camera: ' + err.message;
-                showToast('Lỗi camera! Thử HTTPS với ngrok');
+                console.warn('facingMode failed, enumerating...', err);
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const cams = devices.filter(d => d.kind === 'videoinput');
+                const rear = cams.find(d => /back|rear|environment/i.test(d.label));
+                selectedDeviceId = (rear && rear.deviceId) || (cams.length > 0 ? cams[cams.length-1].deviceId : null);
+                if (selectedDeviceId) {
+                    constraints.video = { deviceId: { exact: selectedDeviceId }, width: { ideal: 640 }, height: { ideal: 480 } };
+                    currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+                } else throw err;
             }
+
+            video.srcObject = currentStream;
+            document.getElementById('serverStatus').textContent = 'Camera sẵn sàng ✓';
+
+            // Sau khi stream sẵn sàng, detect capabilities
+            await detectCapabilities();
+
+        } catch (err) {
+            console.error('Camera error:', err);
+            document.getElementById('serverStatus').textContent = 'Lỗi camera: ' + (err && err.message ? err.message : err);
+            showToast('Lỗi camera! Thử HTTPS với ngrok');
+        }
+    }
+
+    // ─────────────────────────────────────────────
+    //  DETECT CAPABILITIES (Flash + Zoom)
+    // ─────────────────────────────────────────────
+    async function detectCapabilities() {
+        const track = currentStream && currentStream.getVideoTracks()[0];
+        if (!track) return;
+
+        // Đợi track ready
+        await new Promise(r => setTimeout(r, 300));
+
+        let caps = {};
+        try {
+            caps = track.getCapabilities ? track.getCapabilities() : {};
+        } catch(e) {
+            console.warn('getCapabilities error:', e);
         }
 
-        // Doi camera truoc/sau
-        function switchCamera() {
-            facingMode = facingMode === 'environment' ? 'user' : 'environment';
-            initCamera();
-            showToast(facingMode === 'environment' ? '📷 Camera sau' : '🤳 Camera trước');
+        // --- Flash / Torch ---
+        if (caps.torch === true) {
+            flashSupported = true;
+            flashBtn.classList.remove('unsupported');
+            flashBtn.title = 'Bật/Tắt đèn flash';
+        } else {
+            flashSupported = false;
+            flashBtn.classList.add('unsupported');
+            flashBtn.title = 'Thiết bị không hỗ trợ flash';
+        }
+        updateFlashUI();
+
+        // --- Zoom ---
+        setupZoom(caps);
+    }
+
+    // ─────────────────────────────────────────────
+    //  FLASH
+    // ─────────────────────────────────────────────
+    async function toggleFlash() {
+        if (!flashSupported) {
+            showToast('⚠️ Thiết bị này không hỗ trợ torch.\nFlash chỉ hoạt động trên Android Chrome\nvà camera sau (environment).');
+            return;
+        }
+        const track = currentStream && currentStream.getVideoTracks()[0];
+        if (!track) { showToast('❌ Camera chưa sẵn sàng'); return; }
+
+        flashOn = !flashOn;
+        try {
+            await track.applyConstraints({ advanced: [{ torch: flashOn }] });
+            updateFlashUI();
+            showToast(flashOn ? '⚡ Flash BẬT' : '🔦 Flash TẮT');
+        } catch (err) {
+            console.error('torch error:', err);
+            flashOn = false;
+            updateFlashUI();
+            showToast('❌ Không thể bật flash: ' + (err.message || err));
+        }
+    }
+
+    function updateFlashUI() {
+        if (!flashSupported) {
+            flashBtn.classList.add('unsupported');
+            flashBtn.classList.remove('on');
+            flashBtn.textContent = '🔦 Flash';
+            flashBadge.classList.remove('show');
+            return;
+        }
+        flashBtn.classList.remove('unsupported');
+        if (flashOn) {
+            flashBtn.classList.add('on');
+            flashBtn.textContent = '⚡ Flash ON';
+            flashBadge.classList.add('show');
+        } else {
+            flashBtn.classList.remove('on');
+            flashBtn.textContent = '🔦 Flash';
+            flashBadge.classList.remove('show');
+        }
+    }
+
+    // ─────────────────────────────────────────────
+    //  ZOOM SETUP
+    // ─────────────────────────────────────────────
+    function setupZoom(caps) {
+        // Reset
+        currentZoom = 1.0;
+        zoomPresets.innerHTML = '';
+
+        if (caps.zoom && typeof caps.zoom === 'object' && caps.zoom.min !== undefined) {
+            // Hardware zoom
+            zoomMode = 'hardware';
+            zoomMin  = caps.zoom.min  || 1;
+            zoomMax  = caps.zoom.max  || 5;
+            zoomStep = caps.zoom.step || 0.1;
+
+            zoomSlider.min   = zoomMin;
+            zoomSlider.max   = zoomMax;
+            zoomSlider.step  = zoomStep;
+            zoomSlider.value = zoomMin;
+
+            zoomModeTag.textContent = 'Hardware';
+            zoomModeTag.className   = 'zoom-mode-tag hw';
+
+            // Tạo preset buttons dựa theo range thực tế
+            buildZoomPresets(zoomMin, zoomMax);
+
+            zoomPanel.classList.add('show');
+            updateZoomLabel(zoomMin);
+            console.log(`[ZOOM] Hardware zoom: min=${zoomMin}, max=${zoomMax}, step=${zoomStep}`);
+
+        } else {
+            // Fallback CSS zoom
+            zoomMode = 'css';
+            zoomMin  = 1.0;
+            zoomMax  = 5.0;
+            zoomStep = 0.1;
+
+            zoomSlider.min   = 1.0;
+            zoomSlider.max   = 5.0;
+            zoomSlider.step  = 0.1;
+            zoomSlider.value = 1.0;
+
+            zoomModeTag.textContent = 'CSS (Digital)';
+            zoomModeTag.className   = 'zoom-mode-tag css';
+
+            buildZoomPresets(1.0, 5.0);
+            zoomPanel.classList.add('show');
+            updateZoomLabel(1.0);
+            console.log('[ZOOM] Hardware zoom không hỗ trợ → fallback CSS zoom');
+        }
+    }
+
+    function buildZoomPresets(min, max) {
+        zoomPresets.innerHTML = '';
+        // Tạo preset: 1×, ~2×, ~3×, max (tối đa 4 nút)
+        const range = max - min;
+        let presets;
+        if (max <= 2) {
+            presets = [min, max];
+        } else if (max <= 4) {
+            presets = [min, min + range * 0.33, min + range * 0.66, max];
+        } else {
+            presets = [1, 2, 3, Math.min(max, 5)];
         }
 
-        // Chup anh va nhan dien
-        async function captureAndDetect() {
-            if (isDetecting) return;
-            isDetecting = true;
-            loading.classList.add('show');
-
-            try {
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(video, 0, 0);
-
-                // Hien preview
-                preview.src = canvas.toDataURL('image/jpeg', 0.8);
-                preview.style.display = 'block';
-
-                // Gui len server
-                canvas.toBlob(async (blob) => {
-                    const formData = new FormData();
-                    formData.append('image', blob, 'capture.jpg');
-
-                    try {
-                        const resp = await fetch('/detect', {
-                            method: 'POST',
-                            body: formData
-                        });
-                        const data = await resp.json();
-                        updateResult(data);
-                    } catch (err) {
-                        showToast('❌ Lỗi kết nối server');
-                        console.error(err);
-                    } finally {
-                        loading.classList.remove('show');
-                        isDetecting = false;
-                    }
-                }, 'image/jpeg', 0.8);
-            } catch (err) {
-                console.error(err);
-                loading.classList.remove('show');
-                isDetecting = false;
-            }
-        }
-
-        // Cap nhat hien thi ket qua
-        function updateResult(data) {
-            const classNames = {
-                0: 'Không phát hiện',
-                1: 'Organic Waste',
-                2: 'Recyclable Waste',
-                3: 'Inorganic Waste',
-                4: 'Hazardous Waste'
-            };
-            const binNames = {
-                0: '-',
-                1: 'Ngăn 1 (Organic)',
-                2: 'Ngăn 2 (Recyclable)',
-                3: 'Ngăn 3 (Inorganic)',
-                4: 'Ngăn 4 (Hazardous)'
-            };
-
-            const cid = data.class_id || 0;
-            document.getElementById('wasteClass').textContent = classNames[cid] || data.class_name || 'Unknown';
-            document.getElementById('wasteConf').textContent = data.confidence ? (data.confidence * 100).toFixed(1) + '%' : '-';
-            document.getElementById('wasteBin').textContent = binNames[cid] || '-';
-
-            const badge = document.getElementById('wasteTypeBadge');
-            badge.className = 'waste-type type-' + cid;
-            badge.textContent = cid > 0 ? `🗑️ ${classNames[cid]} → ${binNames[cid]}` : 'Chờ phát hiện...';
-
-            if (cid > 0) {
-                showToast(`✅ ${classNames[cid]} - Gửi ESP32 thành công!`);
-            } else {
-                showToast('⚠️ Không phát hiện rác');
-            }
-        }
-
-        // Bat/tat che do tu dong
-        function toggleAuto() {
-            autoMode = !autoMode;
-            autoBtn.classList.toggle('active', autoMode);
-            autoBtn.textContent = autoMode ? '⏹️ Dừng' : '⏱️ Tự động';
-
-            if (autoMode) {
-                showToast('⏱️ Tự động chụp mỗi 3 giây');
-                autoInterval = setInterval(() => {
-                    if (!isDetecting) captureAndDetect();
-                }, 3000);
-            } else {
-                clearInterval(autoInterval);
-                autoInterval = null;
-                showToast('⏹️ Đã dừng tự động');
-            }
-        }
-
-        // Mo cua thung rac tu web app
-        async function openDoor() {
-            try {
-                const btn = document.querySelector('.btn-open-door');
-                btn.disabled = true;
-                btn.textContent = '⏳ Đang mở...';
-                loading.classList.add('show');
-
-                const resp = await fetch('/open_door', { method: 'POST' });
-                const data = await resp.json();
-
-                if (data.success) {
-                    showToast('🚪 Yêu cầu mở cửa đã gửi!');
-                } else {
-                    showToast('❌ Lỗi: ' + data.message);
-                }
-            } catch (err) {
-                console.error(err);
-                showToast('❌ Lỗi kết nối server');
-            } finally {
-                setTimeout(() => {
-                    loading.classList.remove('show');
-                    const btn = document.querySelector('.btn-open-door');
-                    btn.disabled = false;
-                    btn.textContent = '🚪 Mở cửa lấy rác';
-                }, 1500);
-            }
-        }
-
-        // ===== BATTERY DASHBOARD =====
-        let batteryInterval = null;
-        async function updateBattery() {
-            try {
-                const resp = await fetch('/battery');
-                const data = await resp.json();
-                const percent = data.percent || 0;
-                const voltage = data.voltage || 0;
-
-                const fill = document.getElementById('batteryFill');
-                const text = document.getElementById('batteryText');
-                const volt = document.getElementById('batteryVoltage');
-
-                fill.style.width = percent + '%';
-                text.textContent = percent + '%';
-                volt.textContent = voltage.toFixed(2) + ' V';
-
-                // Color class based on level
-                fill.classList.remove('low', 'medium', 'good');
-                if (percent <= 20) fill.classList.add('low');
-                else if (percent <= 50) fill.classList.add('medium');
-                else fill.classList.add('good');
-            } catch (err) {
-                console.error('Battery fetch error:', err);
-            }
-        }
-
-        // Toast thong bao
-        function showToast(msg) {
-            const toast = document.getElementById('toast');
-            toast.textContent = msg;
-            toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 2000);
-        }
-
-        // Khoi dong
-        initCamera();
-        // Start battery polling
-        updateBattery();
-        batteryInterval = setInterval(updateBattery, 5000);
-        window.addEventListener('beforeunload', () => {
-            if (batteryInterval) clearInterval(batteryInterval);
+        presets.forEach(v => {
+            v = parseFloat(v.toFixed(1));
+            if (v < min) v = min;
+            if (v > max) v = max;
+            const btn = document.createElement('button');
+            btn.className = 'zoom-preset-btn' + (v === min ? ' active' : '');
+            btn.textContent = v + '×';
+            btn.dataset.zoom = v;
+            btn.onclick = () => applyZoom(v);
+            zoomPresets.appendChild(btn);
         });
+    }
+
+    // ─────────────────────────────────────────────
+    //  ZOOM APPLY
+    // ─────────────────────────────────────────────
+    async function applyZoom(value) {
+        value = Math.max(zoomMin, Math.min(zoomMax, parseFloat(value)));
+        currentZoom = value;
+        zoomSlider.value = value;
+        updateZoomLabel(value);
+        updateZoomPresetUI(value);
+
+        if (zoomMode === 'hardware') {
+            const track = currentStream && currentStream.getVideoTracks()[0];
+            if (!track) return;
+            try {
+                await track.applyConstraints({ advanced: [{ zoom: value }] });
+            } catch (err) {
+                console.warn('Hardware zoom failed, falling back to CSS:', err);
+                zoomMode = 'css';
+                zoomModeTag.textContent = 'CSS (Digital)';
+                zoomModeTag.className   = 'zoom-mode-tag css';
+                applyCSSZoom(value);
+            }
+        } else if (zoomMode === 'css') {
+            applyCSSZoom(value);
+        }
+
+        showZoomBadge(value);
+    }
+
+    function applyCSSZoom(value) {
+        // scaleX(-1) giữ mirror camera trước, nhân thêm scale zoom
+        video.style.transform = value > 1
+            ? `scaleX(-1) scale(${value})`
+            : `scaleX(-1)`;
+    }
+
+    function onZoomSliderChange(val) {
+        applyZoom(parseFloat(val));
+    }
+
+    function updateZoomLabel(value) {
+        const label = parseFloat(value).toFixed(1) + '×';
+        zoomValueLabel.textContent = label;
+    }
+
+    function updateZoomPresetUI(value) {
+        const btns = zoomPresets.querySelectorAll('.zoom-preset-btn');
+        btns.forEach(btn => {
+            btn.classList.toggle('active', parseFloat(btn.dataset.zoom) === parseFloat(parseFloat(value).toFixed(1)));
+        });
+    }
+
+    function showZoomBadge(value) {
+        const label = parseFloat(value).toFixed(1) + '×';
+        zoomBadge.textContent = label;
+        zoomBadge.classList.remove('hidden');
+        if (badgeTimer) clearTimeout(badgeTimer);
+        // Ẩn badge sau 2 giây nếu đang ở 1×
+        if (parseFloat(value) <= 1.0) {
+            badgeTimer = setTimeout(() => zoomBadge.classList.add('hidden'), 2000);
+        }
+    }
+
+    // ─────────────────────────────────────────────
+    //  SWITCH CAMERA
+    // ─────────────────────────────────────────────
+    function switchCamera() {
+        facingMode = facingMode === 'environment' ? 'user' : 'environment';
+        selectedDeviceId = null;
+
+        // Reset CSS zoom khi switch
+        video.style.transform = 'scaleX(-1)';
+        currentZoom = 1.0;
+        zoomSlider.value = 1.0;
+        updateZoomLabel(1.0);
+        zoomPanel.classList.remove('show');
+        zoomBadge.classList.add('hidden');
+
+        initCamera();
+        showToast(facingMode === 'environment' ? '📷 Camera sau' : '🤳 Camera trước');
+    }
+
+    // ─────────────────────────────────────────────
+    //  CAPTURE & DETECT
+    // ─────────────────────────────────────────────
+    async function captureAndDetect() {
+        if (isDetecting) return;
+        isDetecting = true;
+        loading.classList.add('show');
+
+        try {
+            canvas.width  = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+
+            // Nếu đang dùng CSS zoom, áp dụng crop tương ứng khi vẽ lên canvas
+            // để ảnh gửi server là ảnh đã zoom (không bị mirror ngược)
+            if (zoomMode === 'css' && currentZoom > 1) {
+                const scale = currentZoom;
+                const sw = canvas.width  / scale;
+                const sh = canvas.height / scale;
+                const sx = (canvas.width  - sw) / 2;
+                const sy = (canvas.height - sh) / 2;
+                ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+            } else {
+                ctx.drawImage(video, 0, 0);
+            }
+
+            preview.src = canvas.toDataURL('image/jpeg', 0.8);
+            preview.style.display = 'block';
+
+            canvas.toBlob(async (blob) => {
+                const formData = new FormData();
+                formData.append('image', blob, 'capture.jpg');
+                try {
+                    const resp = await fetch('/detect', { method: 'POST', body: formData });
+                    const data = await resp.json();
+                    updateResult(data);
+                } catch (err) {
+                    showToast('❌ Lỗi kết nối server');
+                    console.error(err);
+                } finally {
+                    loading.classList.remove('show');
+                    isDetecting = false;
+                }
+            }, 'image/jpeg', 0.8);
+        } catch (err) {
+            console.error(err);
+            loading.classList.remove('show');
+            isDetecting = false;
+        }
+    }
+
+    // ─────────────────────────────────────────────
+    //  UPDATE RESULT
+    // ─────────────────────────────────────────────
+    function updateResult(data) {
+        const classNames = { 0: 'Không phát hiện', 1: 'Organic Waste', 2: 'Recyclable Waste', 3: 'Hazardous Waste' };
+        const binNames   = { 0: '-', 1: 'Ngăn 1 (7cm)', 2: 'Ngăn 2 (19cm)', 3: 'Ngăn 3 (32cm)' };
+        const cid = data.class_id || 0;
+        document.getElementById('wasteClass').textContent = classNames[cid] || data.class_name || 'Unknown';
+        document.getElementById('wasteConf').textContent  = data.confidence ? (data.confidence * 100).toFixed(1) + '%' : '-';
+        document.getElementById('wasteBin').textContent   = binNames[cid] || '-';
+        const badge = document.getElementById('wasteTypeBadge');
+        badge.className   = 'waste-type type-' + cid;
+        badge.textContent = cid > 0 ? `🗑️ ${classNames[cid]} → ${binNames[cid]}` : 'Chờ phát hiện...';
+        showToast(cid > 0 ? `✅ ${classNames[cid]} - Gửi ESP32 thành công!` : '⚠️ Không phát hiện rác');
+    }
+
+    // ─────────────────────────────────────────────
+    //  AUTO MODE
+    // ─────────────────────────────────────────────
+    function toggleAuto() {
+        autoMode = !autoMode;
+        autoBtn.classList.toggle('active', autoMode);
+        autoBtn.textContent = autoMode ? '⏹️ Dừng' : '⏱️ Tự động';
+        if (autoMode) {
+            showToast('⏱️ Tự động chụp mỗi 3 giây');
+            autoInterval = setInterval(() => { if (!isDetecting) captureAndDetect(); }, 3000);
+        } else {
+            clearInterval(autoInterval);
+            autoInterval = null;
+            showToast('⏹️ Đã dừng tự động');
+        }
+    }
+
+    // ─────────────────────────────────────────────
+    //  BATTERY
+    // ─────────────────────────────────────────────
+    let batteryInterval = null;
+    async function updateBattery() {
+        try {
+            const resp = await fetch('/battery');
+            const data = await resp.json();
+            const percent = data.percent || 0;
+            const voltage = data.voltage || 0;
+            const fill = document.getElementById('batteryFill');
+            document.getElementById('batteryText').textContent    = percent + '%';
+            document.getElementById('batteryVoltage').textContent = voltage.toFixed(2) + ' V';
+            fill.style.width = percent + '%';
+            fill.classList.remove('low', 'medium', 'good');
+            if (percent <= 20)      fill.classList.add('low');
+            else if (percent <= 50) fill.classList.add('medium');
+            else                    fill.classList.add('good');
+        } catch (err) { console.error('Battery fetch error:', err); }
+    }
+
+    // ─────────────────────────────────────────────
+    //  TOAST
+    // ─────────────────────────────────────────────
+    let toastTimer = null;
+    function showToast(msg) {
+        const toast = document.getElementById('toast');
+        toast.textContent = msg;
+        toast.classList.add('show');
+        if (toastTimer) clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toast.classList.remove('show'), 2500);
+    }
+
+    // ─────────────────────────────────────────────
+    //  BOOT
+    // ─────────────────────────────────────────────
+    initCamera();
+    updateBattery();
+    batteryInterval = setInterval(updateBattery, 5000);
+    window.addEventListener('beforeunload', () => {
+        if (batteryInterval) clearInterval(batteryInterval);
+        if (autoInterval)    clearInterval(autoInterval);
+    });
     </script>
 </body>
 </html>

@@ -1,30 +1,22 @@
 /*
-  Smart Bin - AI Waste Detection + Battery Dashboard
-  VERSION v6 — Servo Standard (không phải 360°)
+  Smart Bin - AI Waste Detection + Battery Dashboard + LED xanh
+  VERSION FINAL – thêm LED xanh GPIO 12 điều khiển từ Dashboard
 
-  Servo MG996R — Standard Servo (KHÔNG phải continuous rotation):
-    writeMicroseconds(500)  = 0°  → đóng nắp
-    writeMicroseconds(1450) = 90° → mở nắp
-
-  Nguyên nhân lỗi v5.4 "quay 2 vòng":
-    SERVO_TRAVEL_MS=1500ms không đủ cho servo chịu tải cơ học.
-    Servo vật lý chưa về 0° nhưng currentServoUS đã cập nhật=500.
-    Re-anchor lần sau dùng điểm tham chiếu sai → servo tìm lại vị trí
-    bằng cách quay vượt qua 0° rồi quay lại → "2 vòng".
-
-  Fix v6:
-    1. Bỏ hoàn toàn re-anchor + currentServoUS tracking
-    2. attach() → writeMicroseconds(target) → delay đủ lớn → detach()
-    3. Mỗi thao tác servo là độc lập, không phụ thuộc lịch sử
-    4. detach() sau mỗi lần dùng → servo giữ vị trí bằng cơ học, không jitter
+  Thay đổi so với v6:
+    - Thêm LED_GREEN_PIN = GPIO 12
+    - Thêm hàm checkLedStatus(): poll GET /led_status mỗi 2 giây
+    - Nếu server trả {"state":"on"}  → digitalWrite(LED_GREEN_PIN, HIGH)
+    - Nếu server trả {"state":"off"} → digitalWrite(LED_GREEN_PIN, LOW)
+    - Tích hợp vào loop() cùng với poll pin và poll AI
 
   Phần cứng:
-    Servo nắp     : GPIO 4  (MG996R, standard servo)
-    Stepper       : GPIO 25 (step), 26 (dir), 27 (ena)
-    Ultrasonic    : Trig=GPIO 5, Echo=GPIO 18
-    LED đỏ        : GPIO 2
-    Battery 3S    : GPIO 34
-    LCD 1602 I2C  : SDA=21, SCL=22, addr=0x27
+    Servo nắp   : GPIO 4  (MG996R standard 180°)
+    Stepper     : GPIO 25 (step), 26 (dir), 27 (ena)
+    Ultrasonic  : Trig=GPIO 5, Echo=GPIO 18
+    LED đỏ      : GPIO 2
+    LED xanh    : GPIO 12  ← MỚI
+    Battery 3S  : GPIO 34
+    LCD 1602 I2C: SDA=21, SCL=22, addr=0x27
 */
 
 #include <Arduino.h>
@@ -38,39 +30,34 @@
 // ============================================================================
 // CẤU HÌNH MẠNG
 // ============================================================================
-const char* WIFI_SSID   = "Start Coffee Tea";
-const char* WIFI_PASS   = "xincamon";
+const char* WIFI_SSID   = "NGO KIM THANH";
+const char* WIFI_PASS   = "11445555";
 const char* SERVER_URL  = "http://192.168.1.52:5001/result";
 const char* BATTERY_URL = "http://192.168.1.52:5001/battery";
+const char* LED_URL     = "http://192.168.1.52:5001/led_status";  // MỚI
 
 // ============================================================================
 // CHÂN KẾT NỐI
 // ============================================================================
-#define SERVO_PIN    4
-#define STEP_PIN     25
-#define DIR_PIN      26
-#define ENA_PIN      27
-#define TRIG_PIN     5
-#define ECHO_PIN     18
-#define LED_RED_PIN  2
-#define BAT_PIN      34
+#define SERVO_PIN       4
+#define STEP_PIN        25
+#define DIR_PIN         26
+#define ENA_PIN         27
+#define TRIG_PIN        5
+#define ECHO_PIN        18
+#define LED_RED_PIN     2
+#define LED_GREEN_PIN   12    // MỚI: LED xanh điều khiển từ Dashboard
+#define BAT_PIN         34
 
 // ============================================================================
-// SERVO 360° (Continuous Rotation) — đã calibrate
-//
-// Servo 360° KHÔNG định vị theo góc, chỉ quay theo tốc độ + thời gian:
-//   1500µs = DỪNG (deadband)
-//   1300µs = quay CW  (thuận kim đồng hồ)
-//   1700µs = quay CCW (ngược kim đồng hồ)
-//
-// Calibration kết quả:
-//   CW  900ms @ 1700µs = 90° → mở nắp
-//   CCW 900ms @ 1300µs = 90° → đóng nắp về vị trí ban đầu
+// SERVO (MG996R standard 180°)
+//   writeMicroseconds(500)  = 0°  → đóng nắp
+//   writeMicroseconds(1450) = 90° → mở nắp
 // ============================================================================
-#define SERVO_STOP    1500   // µs — dừng hoàn toàn
-#define SERVO_CW      1700   // µs — quay CW (mở nắp)
-#define SERVO_CCW     1300   // µs — quay CCW (đóng nắp)
-#define SERVO_90_MS    900   // ms — thời gian quay 90° (đã calibrate)
+#define SERVO_STOP    1500
+#define SERVO_CW      1700   // mở nắp
+#define SERVO_CCW     1300   // đóng nắp
+#define SERVO_90_MS    900   // thời gian quay 90°
 
 // ============================================================================
 // ĐỐI TƯỢNG
@@ -78,8 +65,11 @@ const char* BATTERY_URL = "http://192.168.1.52:5001/battery";
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 Servo servoLid;
 
-unsigned long lastBatterySend    = 0;
+unsigned long lastBatterySend = 0;
+unsigned long lastLedPoll     = 0;    // MỚI
 const unsigned long BATTERY_INTERVAL = 30000;
+const unsigned long LED_INTERVAL     = 2000;  // poll LED mỗi 2 giây
+
 int       wasteType     = 0;
 long long lastTimestamp = -1;
 
@@ -136,75 +126,32 @@ void stepperStop() {
 }
 
 // ============================================================================
-// SERVO 360° — hàm điều khiển
-//
-// servoRotate(speedUS, ms):
-//   1. attach()
-//   2. writeMicroseconds(STOP) → đảm bảo servo đứng yên trước khi ra lệnh
-//   3. delay(50ms)             → settle
-//   4. writeMicroseconds(speedUS) → servo bắt đầu quay
-//   5. delay(ms)               → chờ đúng góc cần quay
-//   6. writeMicroseconds(STOP) → dừng servo
-//   7. delay(100ms)            → servo dừng hẳn
-//   8. detach()                → cắt PWM, không còn xung nào
-//
-// Tại sao write(STOP) trước lệnh quay:
-//   Khi attach(), LEDC channel có thể xuất xung không xác định trong ~20ms
-//   Write(STOP) ngay sau attach đảm bảo servo không giật trước khi quay đúng hướng
+// SERVO
 // ============================================================================
 void servoRotate(int speedUS, int ms) {
-  Serial.printf("[SERVO] Rotate: speed=%dus, time=%dms\n", speedUS, ms);
-
   servoLid.setPeriodHertz(50);
   servoLid.attach(SERVO_PIN, 500, 2400);
-
-  // Đảm bảo servo đứng yên trước khi ra lệnh
   servoLid.writeMicroseconds(SERVO_STOP);
   delay(50);
-
-  // Quay trong thời gian ms
   servoLid.writeMicroseconds(speedUS);
   delay(ms);
-
-  // Dừng
   servoLid.writeMicroseconds(SERVO_STOP);
   delay(100);
-
-  // Detach — không còn xung PWM nào
   servoLid.detach();
-
-  Serial.println("[SERVO] Done.");
 }
-
-// Mở nắp: quay CW 900ms = 90°
-void servoOpen() {
-  Serial.println("[LID] Opening (CW 900ms)...");
-  servoRotate(SERVO_CW, SERVO_90_MS);
-  Serial.println("[LID] Open done.");
-}
-
-// Đóng nắp: quay CCW 900ms = 90° (về vị trí ban đầu)
-void servoClose() {
-  Serial.println("[LID] Closing (CCW 900ms)...");
-  servoRotate(SERVO_CCW, SERVO_90_MS);
-  Serial.println("[LID] Close done.");
-}
+void servoOpen()  { servoRotate(SERVO_CW,  SERVO_90_MS); }
+void servoClose() { servoRotate(SERVO_CCW, SERVO_90_MS); }
 
 // ============================================================================
 // WIFI / HTTP
 // ============================================================================
 bool ensureWiFi() {
   if (WiFi.status() == WL_CONNECTED) return true;
-  Serial.println("[WiFi] Reconnecting...");
   WiFi.reconnect();
   for (int i = 0; i < 20; i++) {
-    if (WiFi.status() == WL_CONNECTED) {
-      Serial.println("[WiFi] OK.");
-      return true;
-    }
+    if (WiFi.status() == WL_CONNECTED) return true;
     delay(500);
   }
-  Serial.println("[WiFi] FAIL.");
   return false;
 }
 
@@ -231,34 +178,48 @@ int doPOST(const char* url, const char* payload) {
 }
 
 // ============================================================================
+// LED XANH – poll trạng thái từ server (MỚI)
+// Dashboard gọi POST /led → server lưu state
+// ESP32 poll GET /led_status → bật/tắt GPIO 12
+// ============================================================================
+void checkLedStatus() {
+  if (!ensureWiFi()) return;
+  String resp;
+  if (doGET(LED_URL, resp) == 200) {
+    JsonDocument doc;
+    if (!deserializeJson(doc, resp)) {
+      const char* state = doc["state"] | "off";
+      if (strcmp(state, "on") == 0) {
+        digitalWrite(LED_GREEN_PIN, HIGH);
+        Serial.println("[LED] Xanh: BẬT");
+      } else {
+        digitalWrite(LED_GREEN_PIN, LOW);
+        Serial.println("[LED] Xanh: TẮT");
+      }
+    }
+  }
+}
+
+// ============================================================================
 // AI DETECTION
 // ============================================================================
 int getDetection() {
   if (!ensureWiFi()) return 0;
   String resp;
   if (doGET(SERVER_URL, resp) != 200) return 0;
-
   Serial.print("[AI] "); Serial.println(resp);
-
   JsonDocument doc;
   if (deserializeJson(doc, resp)) return 0;
-
   long long ts = doc["timestamp"].as<long long>();
-  if (ts == 0 || ts == lastTimestamp) {
-    Serial.println("[AI] No new detection.");
-    return 0;
-  }
+  if (ts == 0 || ts == lastTimestamp) return 0;
   lastTimestamp = ts;
-
   int cid = doc["class_id"] | 0;
   if (cid > 0) {
-    const char* cname = doc["class_name"] | "?";
-    float conf        = doc["confidence"]  | 0.0f;
-    Serial.printf("[AI] Detected: %s (ID=%d, conf=%.1f%%)\n",
-                  cname, cid, conf * 100.0f);
+    Serial.printf("[AI] %s (ID=%d, conf=%.1f%%)\n",
+      (const char*)(doc["class_name"] | "?"), cid,
+      (float)(doc["confidence"] | 0.0f) * 100.0f);
     return cid;
   }
-  Serial.println("[AI] Not detected (class_id=0).");
   return -1;
 }
 
@@ -279,106 +240,61 @@ void sendBattery() {
 // TÊN RÁC
 // ============================================================================
 const char* wasteName(int t) {
-  switch (t) {
-    case 1:  return "Organic Waste";
-    case 2:  return "Recyclable Waste";
-    case 3:  return "Hazardous Waste";
-    default: return "Unknown";
-  }
+  switch (t) { case 1: return "Organic Waste"; case 2: return "Recyclable Waste"; case 3: return "Hazardous Waste"; default: return "Unknown"; }
 }
 const char* wasteShort(int t) {
-  switch (t) {
-    case 1:  return "Organic";
-    case 2:  return "Recyclable";
-    case 3:  return "Hazardous";
-    default: return "Unknown";
-  }
+  switch (t) { case 1: return "Organic"; case 2: return "Recyclable"; case 3: return "Hazardous"; default: return "Unknown"; }
 }
 
 // ============================================================================
 // CHU KỲ PHÂN LOẠI
 // ============================================================================
 void runSortingCycle(int type) {
-  Serial.printf("\n[CYCLE] === START: %s ===\n", wasteName(type));
+  Serial.printf("\n[CYCLE] === %s ===\n", wasteName(type));
   lcdShow("Detected:", wasteShort(type));
   delay(1000);
 
-  // Khoảng cách cảm biến khi đến đúng ngăn
   int target = 7;
-  switch (type) {
-    case 1: target = 7;  break;  // Organic
-    case 2: target = 19; break;  // Recyclable
-    case 3: target = 32; break;  // Hazardous
-  }
-  Serial.printf("[CYCLE] Target dist: %d cm\n", target);
+  switch (type) { case 1: target = 7; break; case 2: target = 19; break; case 3: target = 32; break; }
 
-  // --- GĐ1: Tiến đến ngăn ---
-  Serial.println("[CYCLE] GD1: Moving forward...");
+  // GĐ1: Tiến
   lcdShow("Moving...", wasteShort(type));
-  digitalWrite(DIR_PIN, HIGH);
-  delayMicroseconds(10);
-
+  digitalWrite(DIR_PIN, HIGH); delayMicroseconds(10);
   int safety = 0;
   while (safety < 10000) {
     float d = readDistance();
-    Serial.printf("  dist=%.1f cm (target=%d)\n", d, target);
-    if (d >= (float)target) {
-      Serial.println("  Reached target!");
-      break;
-    }
-    stepperMove(10);
-    safety += 10;
-    delay(10);
+    Serial.printf("  dist=%.1f cm\n", d);
+    if (d >= (float)target) break;
+    stepperMove(10); safety += 10; delay(10);
   }
   stepperStop();
-  if (safety >= 10000) Serial.println("[CYCLE] WARNING: safety limit hit!");
+  delay(500); // chờ từ trường stepper tan
 
-  // Chờ từ trường stepper tan hết trước khi servo hoạt động
-  // Tránh nhiễu điện từ ảnh hưởng PWM servo
-  delay(500);
-
-  // --- GĐ2: Mở nắp 90° ---
-  Serial.println("[CYCLE] GD2: Open lid");
+  // GĐ2: Mở nắp
   lcdShow("Opening lid...", wasteShort(type));
   servoOpen();
 
-  // --- GĐ3: Giữ mở 2 giây cho rác rơi vào ---
-  Serial.println("[CYCLE] GD3: Holding open 2s...");
+  // GĐ3: Giữ 2 giây
   lcdShow("Dropping...", wasteShort(type));
   delay(2000);
 
-  // --- GĐ4: Đóng nắp về 0° ---
-  // servoClose() hoàn toàn độc lập với servoOpen()
-  // attach mới → writeMicroseconds(500) → delay(2000ms) → detach
-  // Servo đi từ bất kỳ vị trí nào về 0° trong 2000ms
-  Serial.println("[CYCLE] GD4: Close lid");
+  // GĐ4: Đóng nắp
   lcdShow("Closing lid...", wasteShort(type));
   servoClose();
-
-  // Chờ thêm để servo lock cơ học hoàn toàn
   delay(300);
 
-  // --- GĐ5: Về home ---
-  Serial.println("[CYCLE] GD5: Returning home...");
+  // GĐ5: Về home
   lcdShow("Returning...", "");
-  digitalWrite(DIR_PIN, LOW);
-  delayMicroseconds(10);
-
+  digitalWrite(DIR_PIN, LOW); delayMicroseconds(10);
   safety = 0;
   while (safety < 10000) {
     float d = readDistance();
     Serial.printf("  dist=%.1f cm\n", d);
-    if (d <= 2.0f) {
-      Serial.println("  Home reached!");
-      break;
-    }
-    stepperMove(10);
-    safety += 10;
-    delay(10);
+    if (d <= 2.0f) break;
+    stepperMove(10); safety += 10; delay(10);
   }
   stepperStop();
 
-  Serial.printf("[CYCLE] === DONE: %s ===\n", wasteName(type));
   lcdShow("Done! Bin:", wasteShort(type));
   delay(2000);
   lcdShow("Waiting for", "AI detection...");
@@ -390,44 +306,35 @@ void runSortingCycle(int type) {
 void setup() {
   Serial.begin(115200);
   delay(200);
-  Serial.println("\n=== SMART BIN v6 ===");
+  Serial.println("\n=== SMART BIN FINAL (LED xanh) ===");
 
   // I2C + LCD
   Wire.begin(21, 22);
   delay(200);
-  lcd.init();
-  lcd.backlight();
-  lcdShow("Smart Bin v6", "Starting...");
-  Serial.println("[LCD] OK.");
+  lcd.init(); lcd.backlight();
+  lcdShow("Smart Bin", "Starting...");
 
-  // Stepper — disable ngay
-  pinMode(STEP_PIN, OUTPUT);
-  pinMode(DIR_PIN,  OUTPUT);
-  pinMode(ENA_PIN,  OUTPUT);
-  digitalWrite(ENA_PIN,  HIGH); // HIGH = disable
-  digitalWrite(STEP_PIN, LOW);
-  digitalWrite(DIR_PIN,  LOW);
+  // Stepper
+  pinMode(STEP_PIN, OUTPUT); pinMode(DIR_PIN, OUTPUT); pinMode(ENA_PIN, OUTPUT);
+  digitalWrite(ENA_PIN, HIGH); digitalWrite(STEP_PIN, LOW); digitalWrite(DIR_PIN, LOW);
 
   // Ultrasonic
-  pinMode(TRIG_PIN, OUTPUT);
-  pinMode(ECHO_PIN, INPUT);
+  pinMode(TRIG_PIN, OUTPUT); pinMode(ECHO_PIN, INPUT);
   digitalWrite(TRIG_PIN, LOW);
 
-  // LED
+  // LED đỏ
   pinMode(LED_RED_PIN, OUTPUT);
   digitalWrite(LED_RED_PIN, LOW);
 
-  // Servo 360° — chỉ allocate timer, KHÔNG attach, KHÔNG gọi servoClose()
-  // Lý do: servo 360° không có vị trí home tuyệt đối.
-  // Gọi servoClose() khi boot sẽ làm servo quay CCW 900ms không cần thiết
-  // nếu nắp đang đóng sẵn → nắp bị lệch.
-  // Người dùng tự đặt nắp về vị trí đóng trước khi bật nguồn.
-  ESP32PWM::allocateTimer(0);
-  ESP32PWM::allocateTimer(1);
-  ESP32PWM::allocateTimer(2);
-  ESP32PWM::allocateTimer(3);
-  Serial.println("[SERVO] Timers allocated. Servo idle (not attached).");
-  Serial.println("[SERVO] NOTE: Dam bao nap dang dong truoc khi bat nguon!");
+  // LED xanh (MỚI)
+  pinMode(LED_GREEN_PIN, OUTPUT);
+  digitalWrite(LED_GREEN_PIN, LOW);
+  Serial.println("[LED] Xanh GPIO 12 sẵn sàng.");
+
+  // Servo timer
+  ESP32PWM::allocateTimer(0); ESP32PWM::allocateTimer(1);
+  ESP32PWM::allocateTimer(2); ESP32PWM::allocateTimer(3);
+  Serial.println("[SERVO] Timers allocated.");
 
   // WiFi
   lcdShow("Connecting WiFi", "Please wait...");
@@ -442,7 +349,7 @@ void setup() {
 
   if (WiFi.status() == WL_CONNECTED) {
     String ip = WiFi.localIP().toString();
-    Serial.printf("[WiFi] Connected! IP=%s\n", ip.c_str());
+    Serial.printf("[WiFi] OK IP=%s\n", ip.c_str());
     lcdShow("WiFi Connected!", ip.c_str());
   } else {
     Serial.println("[WiFi] FAIL!");
@@ -451,7 +358,7 @@ void setup() {
 
   delay(2000);
   lcdShow("Waiting for", "AI detection...");
-  Serial.println("[SETUP] Done. Entering loop().");
+  Serial.println("[SETUP] Done.");
 }
 
 // ============================================================================
@@ -466,23 +373,33 @@ void loop() {
     sendBattery();
   }
 
-  // Chờ AI phát hiện rác
-  Serial.println("[LOOP] Waiting for AI...");
-  wasteType = 0;
+  // Poll LED mỗi 2 giây (MỚI)
+  if (now - lastLedPoll >= LED_INTERVAL) {
+    lastLedPoll = now;
+    checkLedStatus();
+  }
 
+  // Chờ AI phát hiện rác
+  wasteType = 0;
   while (wasteType == 0) {
     unsigned long t = millis();
+
     if (t - lastBatterySend >= BATTERY_INTERVAL) {
       lastBatterySend = t;
       sendBattery();
     }
+    // Tiếp tục poll LED ngay cả khi đang chờ AI
+    if (t - lastLedPoll >= LED_INTERVAL) {
+      lastLedPoll = t;
+      checkLedStatus();
+    }
+
     wasteType = getDetection();
     if (wasteType == 0) delay(2000);
   }
 
-  // AI không nhận diện được → LED đỏ
+  // AI không nhận diện được
   if (wasteType == -1) {
-    Serial.println("[LOOP] Not detected → LED warning!");
     digitalWrite(LED_RED_PIN, HIGH);
     lcdShow("Not Detected!", "!! Warning !!");
     delay(3000);

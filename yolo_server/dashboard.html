@@ -91,6 +91,126 @@ td:last-child{font-family:'Share Tech Mono',monospace;color:var(--accent);font-s
 .popup-actions .btn{width:100%;padding:12px;font-size:10px}
 .btn-cancel{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:var(--text-dim)}
 .btn-cancel:hover{background:rgba(255,255,255,.1)}
+
+/* ===== WELCOME BUTTON ===== */
+.btn-welcome{
+  background:linear-gradient(135deg,#ff6ec7,#ff4fa0,#c724b1);
+  color:#fff;
+  box-shadow:0 4px 24px rgba(255,110,199,.4),0 0 0 0 rgba(255,110,199,.4);
+  animation:welcomePulse 2s ease-in-out infinite;
+  position:relative;overflow:hidden;
+}
+.btn-welcome::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(255,255,255,.2),transparent);
+  border-radius:8px;
+}
+@keyframes welcomePulse{
+  0%,100%{box-shadow:0 4px 24px rgba(255,110,199,.4),0 0 0 0 rgba(255,110,199,.4)}
+  50%{box-shadow:0 4px 32px rgba(255,110,199,.7),0 0 0 10px rgba(255,110,199,0)}
+}
+
+/* ===== WELCOME OVERLAY ===== */
+#welcomeOverlay{
+  position:fixed;inset:0;
+  background:rgba(3,10,20,.92);
+  backdrop-filter:blur(10px);
+  display:none;justify-content:center;align-items:center;
+  z-index:2000;
+  flex-direction:column;
+}
+#welcomeOverlay.show{display:flex}
+#welcomeCanvas{position:absolute;inset:0;pointer-events:none}
+.welcome-content{
+  position:relative;z-index:10;
+  display:flex;flex-direction:column;align-items:center;gap:0;
+  animation:welcomeFadeIn .6s ease both;
+}
+@keyframes welcomeFadeIn{from{opacity:0;transform:translateY(30px) scale(.9)}to{opacity:1;transform:translateY(0) scale(1)}}
+.welcome-title{
+  font-family:'Orbitron',monospace;
+  font-size:clamp(48px,10vw,96px);
+  font-weight:900;
+  letter-spacing:8px;
+  background:linear-gradient(135deg,#fff 0%,#ff6ec7 40%,#ffb347 70%,#00d4ff 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  text-shadow:none;
+  animation:rainbowShift 3s linear infinite alternate;
+  filter:drop-shadow(0 0 30px rgba(255,110,199,.7));
+  margin-bottom:10px;
+}
+@keyframes rainbowShift{
+  0%{filter:drop-shadow(0 0 20px rgba(255,110,199,.8)) hue-rotate(0deg)}
+  100%{filter:drop-shadow(0 0 40px rgba(0,212,255,.8)) hue-rotate(30deg)}
+}
+.welcome-girl{
+  font-size:clamp(80px,18vw,160px);
+  animation:girlFloat 2.5s ease-in-out infinite;
+  line-height:1;
+  filter:drop-shadow(0 8px 24px rgba(255,110,199,.5));
+}
+@keyframes girlFloat{
+  0%,100%{transform:translateY(0) rotate(-2deg)}
+  50%{transform:translateY(-16px) rotate(2deg)}
+}
+.welcome-hearts{
+  display:flex;gap:8px;margin-top:2px;
+  animation:heartsFloat 1.5s ease-in-out infinite alternate;
+}
+@keyframes heartsFloat{from{transform:translateY(0)}to{transform:translateY(-6px)}}
+.welcome-hearts span{font-size:28px;animation:heartPop 0.5s ease both;}
+.welcome-hearts span:nth-child(1){animation-delay:.0s}
+.welcome-hearts span:nth-child(2){animation-delay:.1s}
+.welcome-hearts span:nth-child(3){animation-delay:.2s}
+.welcome-hearts span:nth-child(4){animation-delay:.3s}
+.welcome-hearts span:nth-child(5){animation-delay:.4s}
+@keyframes heartPop{from{transform:scale(0) rotate(-20deg)}to{transform:scale(1) rotate(0)}}
+.welcome-name{
+  font-family:'Orbitron',monospace;
+  font-size:clamp(18px,4vw,32px);
+  font-weight:700;
+  letter-spacing:4px;
+  color:#fff;
+  text-align:center;
+  margin-top:6px;
+  text-shadow:0 0 20px rgba(255,110,199,.9),0 0 40px rgba(255,110,199,.5);
+  animation:nameGlow 2s ease-in-out infinite alternate;
+}
+@keyframes nameGlow{
+  from{text-shadow:0 0 20px rgba(255,110,199,.9),0 0 40px rgba(255,110,199,.5)}
+  to{text-shadow:0 0 30px rgba(255,200,100,1),0 0 60px rgba(255,150,50,.8),0 0 80px rgba(255,110,199,.5)}
+}
+.welcome-close-btn{
+  margin-top:28px;
+  background:linear-gradient(135deg,rgba(255,255,255,.15),rgba(255,255,255,.05));
+  border:1px solid rgba(255,255,255,.3);
+  color:#fff;
+  padding:12px 36px;
+  border-radius:30px;
+  cursor:pointer;
+  font-family:'Orbitron',monospace;
+  font-size:12px;
+  letter-spacing:3px;
+  text-transform:uppercase;
+  transition:all .25s;
+  backdrop-filter:blur(8px);
+}
+.welcome-close-btn:hover{
+  background:linear-gradient(135deg,rgba(255,110,199,.4),rgba(255,110,199,.1));
+  border-color:rgba(255,110,199,.6);
+  transform:scale(1.05);
+  box-shadow:0 0 20px rgba(255,110,199,.4);
+}
+/* Sparkles */
+.sparkle{
+  position:absolute;pointer-events:none;
+  font-size:20px;
+  animation:sparkleFly 2s ease-out both;
+}
+@keyframes sparkleFly{
+  0%{opacity:1;transform:translate(0,0) scale(1)}
+  100%{opacity:0;transform:translate(var(--tx),var(--ty)) scale(0)}
+}
 </style>
 </head>
 <body>
@@ -186,6 +306,7 @@ td:last-child{font-family:'Share Tech Mono',monospace;color:var(--accent);font-s
       <div class="btn-group">
         <button class="btn btn-open" onclick="showPopup()">⬛ Open Bin</button>
         <button class="btn btn-close" onclick="closeBin()">✖ Close Bin</button>
+        <button class="btn btn-welcome" onclick="showWelcome()">🌸 Welcome</button>
       </div>
       <!-- LED status hiển thị trực quan -->
       <div class="led-status">
@@ -245,6 +366,114 @@ td:last-child{font-family:'Share Tech Mono',monospace;color:var(--accent);font-s
     </div>
   </div>
 </div>
+
+<!-- Welcome Overlay -->
+<div id="welcomeOverlay">
+  <canvas id="welcomeCanvas"></canvas>
+  <div class="welcome-content">
+    <div class="welcome-title">WELCOME</div>
+    <div class="welcome-girl">👩‍🦰</div>
+    <div class="welcome-hearts">
+      <span>💖</span><span>✨</span><span>💕</span><span>🌸</span><span>💖</span>
+    </div>
+    <div class="welcome-name">Cô Hội đáng iu 🥰</div>
+    <button class="welcome-close-btn" onclick="hideWelcome()">✕ &nbsp; Đóng</button>
+  </div>
+</div>
+
+<script>
+// ===== FIREWORKS =====
+(function(){
+  const canvas=document.getElementById('welcomeCanvas');
+  const ctx=canvas.getContext('2d');
+  let W,H,particles=[],active=false,raf=null;
+
+  function resize(){W=canvas.width=window.innerWidth;H=canvas.height=window.innerHeight;}
+  window.addEventListener('resize',resize);resize();
+
+  function randomColor(){
+    const colors=['#ff6ec7','#ffb347','#00d4ff','#00ff88','#fff176','#ff4fa0','#c724b1','#7ee8fa','#ffd700','#ff69b4'];
+    return colors[Math.floor(Math.random()*colors.length)];
+  }
+
+  function launch(){
+    const x=W*(.2+Math.random()*.6);
+    const y=H*(.1+Math.random()*.45);
+    const count=90+Math.floor(Math.random()*60);
+    for(let i=0;i<count;i++){
+      const angle=Math.random()*Math.PI*2;
+      const speed=2+Math.random()*6;
+      const color=randomColor();
+      particles.push({
+        x,y,
+        vx:Math.cos(angle)*speed,
+        vy:Math.sin(angle)*speed,
+        alpha:1,life:1,
+        decay:.012+Math.random()*.018,
+        radius:2+Math.random()*3,
+        color,
+        gravity:.08,
+        trail:[],
+      });
+    }
+  }
+
+  function loop(){
+    if(!active)return;
+    ctx.clearRect(0,0,W,H);
+    particles=particles.filter(p=>p.alpha>0.01);
+    for(const p of particles){
+      p.trail.push({x:p.x,y:p.y});
+      if(p.trail.length>6)p.trail.shift();
+      // trail
+      for(let t=0;t<p.trail.length;t++){
+        const a=p.alpha*(t/p.trail.length)*0.4;
+        ctx.beginPath();
+        ctx.arc(p.trail[t].x,p.trail[t].y,p.radius*.5,0,Math.PI*2);
+        ctx.fillStyle=p.color;
+        ctx.globalAlpha=a;
+        ctx.fill();
+      }
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,p.radius,0,Math.PI*2);
+      ctx.fillStyle=p.color;
+      ctx.globalAlpha=p.alpha;
+      ctx.fill();
+      ctx.globalAlpha=1;
+      p.x+=p.vx;p.y+=p.vy;
+      p.vy+=p.gravity;
+      p.vx*=.98;p.vy*=.98;
+      p.alpha-=p.decay;
+    }
+    raf=requestAnimationFrame(loop);
+  }
+
+  let launchTimer=null;
+
+  window.showWelcome=function(){
+    document.getElementById('welcomeOverlay').classList.add('show');
+    active=true;particles=[];
+    // Animate hearts re-trigger
+    document.querySelectorAll('.welcome-hearts span').forEach((s,i)=>{
+      s.style.animation='none';
+      setTimeout(()=>{s.style.animation='heartPop 0.5s ease both';s.style.animationDelay=i*.1+'s';},10);
+    });
+    // Launch fireworks
+    let count=0;
+    function burst(){if(!active||count>18)return;launch();count++;launchTimer=setTimeout(burst,380);}
+    burst();
+    loop();
+  };
+
+  window.hideWelcome=function(){
+    active=false;
+    clearTimeout(launchTimer);
+    if(raf){cancelAnimationFrame(raf);raf=null;}
+    ctx.clearRect(0,0,W,H);
+    document.getElementById('welcomeOverlay').classList.remove('show');
+  };
+})();
+</script>
 
 <script>
 // ============================================================

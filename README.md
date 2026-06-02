@@ -1,64 +1,98 @@
 # 🗑️ Smart Bin - AI Waste Detection System
 
-Hệ thống thùng rác thông minh sử dụng AI (YOLO) để phân loại rác tự động qua camera điện thoại.
+Hệ thống thùng rác thông minh sử dụng AI (YOLO) để phân loại rác tự động qua camera điện thoại, tích hợp dashboard realtime và điều khiển từ xa qua web.
+
+---
 
 ## Kiến trúc hệ thống
 
 ```
-┌─────────────┐ HTTP POST ┌──────────────────┐ HTTP GET ┌──────────┐
-│ Phone Cam   │ ──── image ───> │ Python Server │ <─── poll ──── │ ESP32    │
-│ (Web App)   │           │ (Flask + YOLO) │           │ (Motor)  │
-└─────────────┘           └──────────────────┘           └──────────┘
-                                │
-                          YOLO Model
-                          (best.pt)
-                                │
-                    ┌────────┴────────┐
-                    │ 3 loại rác:     │
-                    │ 1=Organic       │
-                    │ 2=Recyclable    │
-                    │ 3=Hazardous     │
-                    └─────────────────┘
+┌──────────────┐  POST /detect  ┌──────────────────────┐  GET /result     ┌──────────────┐
+│  Phone Cam   │ ─── ảnh ────→  │   Python Server      │ ←─── poll ─────  │    ESP32     │
+│  (Web App)   │                │  (Flask + YOLO)      │                  │  (Motor/LED) │
+└──────────────┘                └──────────────────────┘                  └──────────────┘
+                                         │          ↑
+                                    YOLO Model   POST /battery
+                                    (best.pt)    GET /led_status
+                                         │          │
+                               ┌─────────┴──────────┴────────┐
+                               │       API Endpoints          │
+                               │  /api/stats  /api/detections │
+                               │  /led        /led_status     │
+                               └────────────────────────────-─┘
+                                         │
+                               ┌─────────┴──────────┐
+                               │    Dashboard        │
+                               │  (dashboard.html)   │
+                               └─────────────────────┘
 ```
+
+---
+
+## Tính năng chính
+
+- **Phân loại rác bằng AI (YOLO):** Nhận diện 3 loại rác qua camera điện thoại
+- **Điều khiển cơ học tự động:** Stepper motor đưa khay rác đến đúng ngăn, servo mở/đóng nắp
+- **Dashboard realtime:** Theo dõi số lần phát hiện, pin, trạng thái hệ thống
+- **Điều khiển LED từ xa:** Dashboard bật/tắt LED xanh GPIO 12 qua API
+- **Giám sát pin:** ESP32 đọc điện áp pin 3S 18650, gửi lên server mỗi 30 giây
+- **Zoom camera + Flash:** Web app hỗ trợ hardware zoom (nếu có), CSS zoom fallback, torch API
+
+---
+
+## Phân loại rác
+
+| Class ID | Tên | Ngăn rác | Khoảng cách |
+|----------|-----|----------|-------------|
+| 0 | Không phát hiện | — | — |
+| 1 | Organic Waste | Ngăn 1 | 7 cm |
+| 2 | Recyclable Waste | Ngăn 2 | 19 cm |
+| 3 | Hazardous Waste | Ngăn 3 | 32 cm |
+
+---
 
 ## Cấu trúc thư mục
 
 ```
 cycle_bin/
 ├── src/
-│   └── main.cpp          # Code ESP32 - WiFi, HTTP client, điều khiển motor
+│   └── main.cpp              # Code ESP32
 ├── yolo_server/
-│   ├── server.py         # Flask server - YOLO detection API
-│   ├── index.html        # Web app - Phone camera UI
-│   ├── requirements.txt  # Python dependencies
-│   └── uploads/          # Thư mục lưu ảnh tạm
-├── platformio.ini        # PlatformIO config (ESP32 + ArduinoJson)
+│   ├── server.py             # Flask server – YOLO detection + LED + Battery API
+│   ├── index.html            # Web app – camera điện thoại
+│   ├── dashboard.html        # Dashboard realtime
+│   ├── requirements.txt      # Python dependencies
+│   └── uploads/              # Ảnh tạm (tự tạo khi chạy)
+├── platformio.ini            # PlatformIO config
 └── README.md
 ```
 
 ---
 
-## Chi tiết từng file
+## Chi tiết từng thành phần
 
-### 1. `yolo_server/server.py` - Python Flask Server
+### 1. `server.py` — Python Flask Server
 
-**Chức năng:**
-- Load model YOLO (ví dụ: `best.pt`)
-- Nhận ảnh từ phone camera, chạy YOLO detection
-- Lưu kết quả và cung cấp API cho ESP32 poll
+**Chức năng:** Load YOLO model, nhận ảnh từ phone, detect rác, cung cấp API cho ESP32 và Dashboard.
 
-**API Endpoints:**
+#### API Endpoints
 
 | Endpoint | Method | Mô tả |
-|----------------|--------|-----------------------------------------|
-| `/` | GET | Trả về web app (index.html) |
-| `/detect` | POST | Nhận ảnh → chạy YOLO → trả kết quả JSON |
-| `/result` | GET | ESP32 poll kết quả detection gần nhất |
-| `/status` | GET | Check server status |
-| `/open_door` | POST | Web app gọi để yêu cầu mở cửa thùng rác |
+|----------|--------|-------|
+| `/` | GET | Trả về web app (`index.html`) |
+| `/detect` | POST | Nhận ảnh → chạy YOLO → lưu kết quả |
+| `/result` | GET | ESP32 poll kết quả detect gần nhất |
+| `/status` | GET | Kiểm tra trạng thái server |
+| `/battery` | POST/GET | ESP32 gửi / Dashboard đọc thông tin pin |
+| `/led` | POST | Dashboard gọi để bật/tắt LED xanh |
+| `/led_status` | GET | ESP32 poll trạng thái LED mỗi 2 giây |
+| `/api/stats` | GET | Dashboard lấy thống kê tổng hợp |
+| `/api/detections` | GET | Dashboard lấy lịch sử detect (limit tùy chọn) |
+| `/dashboard` | GET | Trả về trang dashboard |
 
-**Response format `/result`:**
-```json example:
+#### Response format `/result`
+
+```json
 {
   "class_id": 2,
   "class_name": "Recyclable Waste",
@@ -67,133 +101,174 @@ cycle_bin/
 }
 ```
 
-**Class mapping:**
+#### Response format `/api/stats`
 
-| class_id | Tên lớp | Ngăn rác | Chức năng LED |
-|----------|------------------|---------------|----------------------------|
-| 0 | Không phát hiện | - | 🔴 LED Đỏ sáng (cảnh báo) |
-| 1 | Organic Waste | Ngăn 1 (7cm) | Tắt LED |
-| 2 | Recyclable Waste | Ngăn 2 (19cm) | Tắt LED |
-| 3 | Hazardous Waste | Ngăn 3 (32cm) | Tắt LED |
+```json
+{
+  "total_detections": 42,
+  "counts": {
+    "organic": 15,
+    "recyclable": 20,
+    "hazardous": 5,
+    "unknown": 2
+  },
+  "battery": { "voltage": 11.8, "percent": 72, "timestamp": 1778841961000 },
+  "last_detection": { ... }
+}
+```
 
-**⚠️ Tính năng mới: LED Cảnh báo đỏ**
-- Khi AI không nhận diện được vật thể (`class_id = 0`):
-  - 🔴 LED đỏ sẽ sáng trong 3 giây để cảnh báo
-  - ESP32 không di chuyển motor, chờ detection mới
-- Khi nhận diện thành công (class 1-3): LED đỏ tắt
+#### Cấu hình server
 
-**HTTPS:** Server tự động dùng SSL (adhoc) nếu có pyOpenSSL → Camera phone yêu cầu HTTPS.
+```python
+MODEL_PATH = r"D:\YOLO\IOT\Src\best.pt"   # Đường dẫn đến model YOLO
+```
+
+Server tự động dùng HTTPS (port 5000, yêu cầu `pyOpenSSL`) cho phone camera và HTTP (port 5001) cho ESP32.
 
 ---
 
-### 2. `yolo_server/index.html` - Web App Phone Camera
+### 2. `index.html` — Web App Camera (Phone)
 
-**Chức năng:**
-- Hiển thị camera phone (trước/sau)
-- Chụp ảnh và gửi lên server `/detect`
-- Hiển thị kết quả nhận diện
-- Chế độ tự động chụp mỗi 3 giây
+**Chức năng:** Giao diện chụp ảnh trên điện thoại, gửi lên server để nhận diện.
 
 **Tính năng:**
-- 🔄 Đổi camera trước/sau
-- 📸 Chụp & Nhận diện (thủ công)
-- ⏱️ Tự động chụp (mỗi 3s)
-- 📊 Hiển thị loại rác, độ tin cậy, ngăn rác
-- ⚠️ Kiểm tra HTTPS/HTTP và polyfill getUserMedia
 
-**Giao diện:**
-- Dark theme, mobile-friendly
-- Color-code: 🟢 Organic, 🔵 Recyclable, 🔴 Hazardous
+- 🔄 Đổi camera trước/sau
+- 📸 Chụp thủ công và gửi detect
+- ⏱️ Chế độ tự động chụp mỗi 3 giây
+- 🔍 Zoom slider + preset buttons (hardware zoom ưu tiên, fallback CSS zoom)
+- ⚡ Torch/Flash (Android Chrome + camera sau)
+- 🔋 Hiển thị dashboard pin theo thời gian thực
+- 📊 Hiển thị kết quả: loại rác, độ tin cậy, ngăn rác
+
+**Color coding kết quả:**
+
+| Loại rác | Màu |
+|----------|-----|
+| Organic Waste | 🟢 Xanh lá |
+| Recyclable Waste | 🔵 Xanh dương |
+| Hazardous Waste | 🔴 Đỏ |
+| Không phát hiện | ⚫ Xám |
+
+**Yêu cầu:** Phải truy cập qua HTTPS (trình duyệt chặn camera trên HTTP). Dùng ngrok nếu cần tunnel:
+
+```bash
+ngrok http 5000
+```
 
 ---
 
-### 3. `src/main.cpp` - ESP32 Code
+### 3. `dashboard.html` — Dashboard Realtime
 
-**Chức năng:**
-- Kết nối WiFi
-- Poll server `/result` mỗi 2 giây
-- Khi phát hiện rác mới → điều khiển motor đến ngăn đúng
-- 🔴 Khi AI không nhận diện được vật thể → Sáng LED đỏ cảnh báo
+**Chức năng:** Giao diện giám sát và điều khiển hệ thống, chạy trên máy tính hoặc tablet.
 
-**Luồng hoạt động:**
+**Widget chính:**
+
+| Widget | Nguồn dữ liệu |
+|--------|--------------|
+| Fill Level | Tính từ `total_detections` (50 lần = 100%) |
+| Battery | `POST /battery` từ ESP32 |
+| Detected Waste | `GET /api/stats` |
+| Temperature | Fake data (demo) |
+| AI Prediction | Fake data (demo) |
+| Waste Analytics (chart) | Một phần từ server, một phần fake |
+| Recent Detections table | `GET /api/detections` |
+
+**Điều khiển từ xa:**
+
+- **Open Bin:** Yêu cầu nhập mật khẩu → gọi `POST /led {"state":"on"}` → ESP32 bật LED xanh GPIO 12
+- **Close Bin:** Gọi `POST /led {"state":"off"}` → ESP32 tắt LED xanh
+- **Welcome 🌸:** Hiển thị overlay animation (fireworks + tên giảng viên)
+
+**LED status indicator:** Hiển thị trạng thái LED xanh trực quan (đồng bộ 3 giây/lần).
+
+**Auto-refresh:** `pollData()` mỗi 3 giây, fetch `/api/stats` và `/api/detections`.
+
+---
+
+### 4. `main.cpp` — ESP32 Firmware
+
+**Chức năng:** Kết nối WiFi, poll server, điều khiển cơ học (stepper + servo), quản lý LED và pin.
+
+#### Sơ đồ chân (Pin Map)
+
+| Component | GPIO | Ghi chú |
+|-----------|------|---------|
+| Servo nắp (MG996R) | 4 | PWM 500–2400 µs |
+| Stepper Step (DRV8825) | 25 | Xung bước |
+| Stepper Dir | 26 | Hướng quay |
+| Stepper Enable | 27 | Active LOW |
+| Ultrasonic Trig | 5 | |
+| Ultrasonic Echo | 18 | |
+| LED Đỏ (cảnh báo) | 2 | Bật khi AI không nhận diện |
+| LED Xanh (remote) | 12 | Điều khiển từ Dashboard |
+| Battery ADC | 34 | Qua voltage divider |
+| LCD SDA | 21 | I2C |
+| LCD SCL | 22 | I2C |
+
+#### Servo Timing (MG996R Standard 180°)
+
+| Hành động | Microseconds |
+|-----------|-------------|
+| Dừng (neutral) | 1500 µs |
+| Mở nắp (CW) | 1700 µs |
+| Đóng nắp (CCW) | 1300 µs |
+| Thời gian quay 90° | 900 ms |
+
+#### Luồng hoạt động chính
+
 ```
-1. Kết nối WiFi
-2. Loop: Poll server → chờ phát hiện rác mới
-3. Khi phát hiện rác (class 1-3):
-├── PHASE 1: Stepper quay THUẬN đến khoảng cách đúng (7/19/32 cm)
-├── Chờ 200ms stepper ổn định (tránh nhiễu điện ảnh hưởng servo)
-├── PHASE 2: Servo quay 90° (mở nắp) + chờ 1 giây servo đến vị trí
-├── PHASE 3: Giữ nắp mở 2 giây (cho rác rơi xuống ngăn)
-├── PHASE 4: Servo quay về 0° (đóng nắp) + chờ 1 giây servo về vị trí
-└── PHASE 5: Stepper quay NGHỊCH về vị trí gốc (≤3 cm)
-└── Trả về bước 2
-4. Khi AI không nhận diện được (class 0):
-├── 🔴 Sáng LED đỏ trong 3 giây (cảnh báo)
-├── LED tắt
-└── Trả về bước 2
+SETUP:
+  → Khởi tạo LCD, stepper, servo, LED, ADC
+  → Kết nối WiFi
+  → Hiển thị IP trên LCD
+
+LOOP:
+  ├── Mỗi 30 giây: đọc pin ADC → POST /battery
+  ├── Mỗi 2 giây:  GET /led_status → bật/tắt LED GPIO 12
+  └── Chờ AI phát hiện rác (GET /result mỗi 2 giây):
+        ├── class_id = 0 (chưa có)      → tiếp tục chờ
+        ├── class_id = -1 (không detect) → LED đỏ sáng 3 giây → chờ tiếp
+        └── class_id = 1/2/3            → chạy chu kỳ phân loại:
+              Phase 1: Stepper FORWARD đến đúng khoảng cách (7/19/32 cm)
+              Phase 2: Servo mở nắp 90° (900 ms)
+              Phase 3: Giữ nắp mở 2 giây (rác rơi xuống)
+              Phase 4: Servo đóng nắp về 0° (900 ms)
+              Phase 5: Stepper BACKWARD về vị trí gốc (≤2 cm)
 ```
 
-**Hardware pins:**
-
-| Component | Pin | Chức năng |
-|-----------------|---------|--------------------------|
-| Servo | GPIO 4 | PWM điều khiển nắp thùng |
-| Stepper Step | GPIO 25 | Xung bước DRV8825 |
-| Stepper Dir | GPIO 26 | Hướng quay DRV8825 |
-| Stepper Enable | GPIO 27 | Enable/Disable DRV8825 |
-| Ultrasonic Trig | GPIO 5 | Trigger cảm biến |
-| Ultrasonic Echo | GPIO 18 | Echo cảm biến |
-| LED Đỏ (Cảnh báo)| GPIO 2 | Báo AI không nhận diện được |
-| LCD SDA | GPIO 21 | |
-| LCD SCL | GPIO 22 | |
-
-**Config cần đổi:**
-```cpp
-const char* WIFI_SSID = "YOUR_WIFI";        // WiFi name
-const char* WIFI_PASS = "YOUR_PASSWORD";    // WiFi password
-const char* SERVER_URL = "https://IP:5000/result";   // Server URL
-const char* BATTERY_URL = "https://IP:5000/battery"; // Battery API URL
-```
-
-**📺 Tính năng mới: LCD 1602 hiển thị loại rác**
-
-LCD 1602 hiển thị thông tin theo từng trạng thái của hệ thống:
+#### LCD 1602 — Trạng thái hiển thị
 
 | Trạng thái | Dòng 1 | Dòng 2 |
-|---|---|---|
+|-----------|--------|--------|
 | Khởi động | `Smart Bin` | `Starting...` |
-| WiFi kết nối thành công | `WiFi Connected!` | `IP của ESP32` |
+| WiFi OK | `WiFi Connected!` | `<IP address>` |
 | WiFi lỗi | `WiFi ERROR!` | `Check SSID/PW` |
-| Chờ phát hiện rác | `Waiting for` | `AI detection...` |
-| AI không nhận diện được | `AI: Not Detected` | `!! Warning !!` |
+| Chờ detect | `Waiting for` | `AI detection...` |
+| Không detect được | `Not Detected!` | `!! Warning !!` |
 | Phát hiện rác | `Detected:` | `Organic/Recyclable/Hazardous` |
-| Hoàn thành đổ rác | `Done! Bin X` | `Tên loại rác` |
+| Đang di chuyển | `Moving...` | `<tên loại rác>` |
+| Đang mở nắp | `Opening lid...` | `<tên loại rác>` |
+| Đang đổ rác | `Dropping...` | `<tên loại rác>` |
+| Đang đóng nắp | `Closing lid...` | `<tên loại rác>` |
+| Đang về nhà | `Returning...` | _(trống)_ |
+| Hoàn thành | `Done! Bin:` | `<tên loại rác>` |
 
+#### Sơ đồ voltage divider (Pin 3S 18650 → ADC ESP32)
 
-**⚡ Tính năng mới: Battery Dashboard**
-- ESP32 đọc điện áp pin 3S 18650 qua ADC (GPIO 34)
-- Gửi dữ liệu lên server mỗi 30 giây (voltage + %)
-- Web app hiển thị dashboard pin với màu sắc:
-  - 🟢 >50%: Xanh lá (good)
-  - 🟠 20-50%: Cam (medium)
-  - 🔴 <20%: Đỏ (low - cần sạc)
-
-**Sơ đồ voltage divider (3S 18650 → ADC ESP32):**
 ```
-3S 18650 (+) ─── 30kΩ ───+─── 10kΩ ─── GND
+3S 18650 (+) ─── 30kΩ ───┬─── 10kΩ ─── GND
                           │
-                    ADC (GPIO34)
-Vbat ~9-12.6V → Vadc ~2.9-3.15V (an toàn cho ADC ESP32)
+                    ADC (GPIO 34)
+
+Vbat 9.0V–12.6V → Vadc ~2.25V–3.15V  (an toàn cho ESP32 max 3.3V)
 ```
 
-**Bug fix quan trọng:**
-1. `lastTimestamp` dùng `long long` (64-bit) vì Python `int(time.time()*1000)` tạo timestamp > 4 tỷ, vượt quá `unsigned long` 32-bit của ESP32.
-2. **v4 - Fix servo timing (MG996R):** Code cũ có lỗi duplicate `lidOpen()`/`lidClose()` gây ambiguous behavior. Ngoài ra, `lidOpen()` chứa `delay(1000)` rồi `runSortingCycle()` lại `delay(2000)` → nắp mở tổng 3 giây thay vì 2 giây theo yêu cầu. Đã fix: xóa duplicate functions, đặt logic servo trực tiếp trong `runSortingCycle()` với timing chính xác: `write(90)` → `delay(1000)` chờ servo đến 90° → `delay(2000)` giữ mở → `write(0)` → `delay(1000)` chờ servo về 0°. Thêm `delay(200)` sau `stepperStop()` để DRV8825 ổn định trước khi điều khiển servo.
-3. **v5 - Chuyển từ 4 loại rác sang 3 loại rác:** Loại bỏ "Inorganic Waste", cập nhật khoảng cách ngăn: Organic=7cm, Recyclable=19cm, Hazardous=32cm. Class ID: 1=Organic, 2=Recyclable, 3=Hazardous.
+Tỉ lệ đọc: `Vbat = (analogRead / 4095.0) × 3.3 × 4.0`
 
 ---
 
-### 4. `platformio.ini` - PlatformIO Config
+### 5. `platformio.ini` — PlatformIO Config
 
 ```ini
 [env:featheresp32]
@@ -204,56 +279,87 @@ lib_deps =
     ESP32Servo
     bblanchon/ArduinoJson@^7.0.0
     arduino-libraries/LiquidCrystal@^1.0.7
-upload_port = COM6 #COM ESP32/ARDUINO
-monitor_port = COM6 #COM ESP32/ARDUINO
+upload_port = COM6
+monitor_port = COM6
 monitor_speed = 115200
 ```
-
-Thư viện: `ESP32Servo` (servo PWM) + `ArduinoJson` (parse JSON từ server) + `LiquidCrystal` (LCD 1602 4-bit).
 
 ---
 
 ## Hướng dẫn triển khai
 
-### Bước 1: Cài đặt Python Server
+### Bước 1: Cài Python dependencies
 
 ```bash
 cd yolo_server
-pip install -r requirements.txt
-# requirements: flask, ultralytics, opencv-python, pyOpenSSL
+pip install flask ultralytics opencv-python pyOpenSSL
 ```
 
-### Bước 2: Chạy Server
+### Bước 2: Chạy Flask server
 
 ```bash
 python server.py
 ```
 
-Server chạy tại `https://<IP_PC>:5000`
-- Kiểm tra IP: `ipconfig` (Windows)
+Đầu ra terminal sẽ hiển thị IP máy tính, ví dụ:
+
+```
+ IP     : 192.168.1.100
+ ESP32  : http://192.168.1.100:5001/result
+ LED    : http://192.168.1.100:5001/led_status
+ Dashboard: https://192.168.1.100:5000/dashboard
+```
 
 ### Bước 3: Cấu hình ESP32
 
-Sửa 3 dòng trong `src/main.cpp`:
+Sửa 4 dòng đầu trong `src/main.cpp`:
+
 ```cpp
-const char* WIFI_SSID = "Tên_WiFi";
-const char* WIFI_PASS = "Mật_khẩu";
-const char* SERVER_URL = "https://<IP_PC>:5000/result";
+const char* WIFI_SSID   = "Ten_WiFi";
+const char* WIFI_PASS   = "Mat_khau";
+const char* SERVER_URL  = "http://<IP_PC>:5001/result";
+const char* BATTERY_URL = "http://<IP_PC>:5001/battery";
+const char* LED_URL     = "http://<IP_PC>:5001/led_status";
 ```
 
-### Bước 4: Upload ESP32
+> **Lưu ý:** ESP32 dùng HTTP (port 5001), không cần HTTPS.
+
+### Bước 4: Upload firmware ESP32
 
 ```bash
 pio run -t upload
 pio device monitor
 ```
 
-### Bước 5: Sử dụng
+### Bước 5: Mở Web App trên điện thoại
 
-1. Mở browser trên phone → truy cập `https://<IP_PC>:5000`
-2. Chấp nhận certificate warning (SSL self-signed)
-3. Cho phép truy cập camera
-4. Chụp ảnh rác hoặc bật chế độ tự động
-5. ESP32 tự động nhận kết quả và điều khiển motor/LED
+1. Truy cập `https://<IP_PC>:5000` trên browser điện thoại
+2. Chấp nhận cảnh báo SSL (self-signed certificate)
+3. Cho phép quyền truy cập camera
+4. Chụp ảnh hoặc bật chế độ Auto (3 giây/lần)
+
+### Bước 6: Mở Dashboard
+
+Truy cập `https://<IP_PC>:5000/dashboard` trên máy tính hoặc tablet.
+
+Mật khẩu mặc định để mở bin: `123456`
+
+---
+
+## Các vấn đề đã biết & lưu ý
+
+**Camera web app yêu cầu HTTPS:** Trình duyệt hiện đại chặn `getUserMedia()` trên HTTP. Dùng `pyOpenSSL` để server tự tạo cert, hoặc tunnel qua ngrok:
+
+```bash
+ngrok http 5000
+```
+
+**Timestamp 64-bit:** Python tạo timestamp dạng `int(time.time()*1000)` vượt quá 32-bit. ESP32 dùng `long long` (64-bit) để parse đúng — không được đổi sang `unsigned long`.
+
+**Motor và servo không chạy cùng lúc:** Code thêm `delay(500)` sau `stepperStop()` để từ trường DRV8825 tan trước khi servo nhận lệnh, tránh nhiễu điện.
+
+**Flash torch chỉ hoạt động trên:** Android Chrome + camera sau (environment). iOS Safari không hỗ trợ torch API.
+
+**CSS zoom vs Hardware zoom:** Nếu thiết bị không hỗ trợ hardware zoom qua `track.getCapabilities()`, web app tự fallback sang CSS `scale()`. Ảnh gửi lên server khi CSS zoom được crop đúng để AI nhận diện chính xác vùng được zoom.
 
 ---

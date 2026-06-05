@@ -22,7 +22,7 @@ from collections import deque
 
 app = Flask(__name__)
 
-MODEL_PATH = r"D:\YOLO\IOT\Src\best.pt"
+MODEL_PATH = r"D:\YOLO\IOT\Src1\best.pt"
 print(f"Đang load model: {MODEL_PATH}")
 model = YOLO(MODEL_PATH)
 print("Model loaded thành công!")

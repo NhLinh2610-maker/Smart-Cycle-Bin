@@ -30,11 +30,11 @@
 // ============================================================================
 // CẤU HÌNH MẠNG
 // ============================================================================
-const char* WIFI_SSID   = "NGO KIM THANH";
-const char* WIFI_PASS   = "11445555";
-const char* SERVER_URL  = "http://10.51.184.239:5001/result";
-const char* BATTERY_URL = "http://10.51.184.239:5001/battery";
-const char* LED_URL     = "http://10.51.184.239:5001/led_status";  // MỚI
+const char* WIFI_SSID   = "DL";
+const char* WIFI_PASS   = "26262626";
+const char* SERVER_URL  = "http://192.168.1.235:5001/result";
+const char* BATTERY_URL = "http://192.168.1.235:5001/battery";
+const char* LED_URL     = "http://192.168.1.235:5001/led_status";  // MỚI
 
 // ============================================================================
 // CHÂN KẾT NỐI
